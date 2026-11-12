@@ -1,0 +1,12 @@
+{
+  "name": "hook",
+  "private": true,
+  "version": "0.1.0",
+  "bin": { "visor-hook": "bin/visor-hook.cjs" },
+  "scripts": {
+    "build": "esbuild src/forward.ts src/install.ts --bundle --platform=node --target=node22 --format=cjs --outdir=dist",
+    "install:hooks": "node dist/install.js"
+  },
+  "dependencies": { "@visor/bridge": "workspace:*" },
+  "devDependencies": { "esbuild": "^0.25.12" }
+}

@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import type { HookSnapshot } from '@visor/bridge'
 import { motion, useReducedMotion } from 'framer-motion'
 import { Box, ChevronRight, FileCode2, Folder, GitBranch, Settings2 } from 'lucide-react'
 import type { DiagramSource } from './diagram/types'
@@ -9,8 +10,19 @@ export function App({ source }: { source: DiagramSource }) {
   const [view] = useState(() => source.load())
   const [selectedId, setSelectedId] = useState(view.changes[0]?.id)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [hooks, setHooks] = useState<HookSnapshot | null>(null)
   const reducedMotion = useReducedMotion()
   const selectedChange = view.changes.find((change) => change.id === selectedId)
+
+  useEffect(() => {
+    const bridge = window.visorHooks
+    if (!bridge) return
+    let active = true
+    const update = (snapshot: HookSnapshot) => { if (active) setHooks(snapshot) }
+    const unsubscribe = bridge.onSnapshot(update)
+    void bridge.getSnapshot().then(update).catch(() => {})
+    return () => { active = false; unsubscribe() }
+  }, [])
 
   return (
     <div className="app-shell">
@@ -35,8 +47,8 @@ export function App({ source }: { source: DiagramSource }) {
       </aside>
       <main className="main-panel">
         <header className="session-header">
-          <div className="session-breadcrumb"><span>Sessions</span><ChevronRight size={13} /><span>{view.session.project}</span><span className="sample-label">Sample session</span></div>
-          <div className="session-title"><h1>{view.session.name}</h1><span className="branch"><GitBranch size={14} />{view.session.branch}</span></div>
+          <div className="session-breadcrumb"><span>Sessions</span><ChevronRight size={13} /><span>{view.session.project}</span><span className="sample-label">{hooks?.sessionId ? 'Sample diagram' : 'Sample session'}</span></div>
+          <div className="session-title"><h1 title={hooks?.sessionId ?? view.session.name}>{hooks?.sessionId ?? view.session.name}</h1><span className="branch"><GitBranch size={14} />{view.session.branch}</span></div>
           <div className="session-meta"><span>GitHub Copilot</span><span aria-hidden="true">/</span><span>November 12, 2026</span><span aria-hidden="true">/</span><span>{view.changes.length} changes</span></div>
         </header>
         <motion.div className="diagram-region" initial={reducedMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
@@ -44,7 +56,7 @@ export function App({ source }: { source: DiagramSource }) {
         </motion.div>
         <footer className="session-footer"><span><FileCode2 size={14} />{selectedChange ? `Change ${selectedChange.number}` : 'Session'}<span className="footer-separator" />{selectedChange?.summary}</span><span>Local workspace</span></footer>
       </main>
-      {settingsOpen && <Settings onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && <Settings hooks={hooks} onClose={() => setSettingsOpen(false)} />}
     </div>
   )
 }

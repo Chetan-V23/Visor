@@ -1,0 +1,19 @@
+{
+  "id": "4508c17a-baaa-4a0c-9add-7384850f24fd",
+  "source": "copilot",
+  "event": "preToolUse",
+  "receivedAt": 1794470443104,
+  "payload": {
+    "timestamp": "2026-11-12T08:00:42.200Z",
+    "hook_event_name": "PreToolUse",
+    "session_id": "27f8abc8-61fa-4c6e-a74a-749faa1e02a4",
+    "transcript_path": "<path>",
+    "tool_name": "create_file",
+    "tool_input": {
+      "filePath": "image_compare.py",
+      "content": "from pathlib import Path\n\nimport matplotlib.pyplot as plt\nimport numpy as np\n\n\nclass NpyImage:\n    def __init__(self, path: str | Path):\n        self.path = Path(path)\n        self.data: np.ndarray = np.load(self.path)\n\n    @property\n    def name(self) -> str:\n        return self.path.name\n\n    @property\n    def shape(self) -> tuple[int, ...]:\n        return self.data.shape\n\n\nclass Main:\n    IMAGE_A_PATH = Path(\"data/image_a.npy\")\n    IMAGE_B_PATH = Path(\"data/image_b.npy\")\n\n    def __init__(self):\n        self.image_a = NpyImage(self.IMAGE_A_PATH)\n        self.image_b = NpyImage(self.IMAGE_B_PATH)\n\n    def compare(self) -> None:\n        fig, axes = plt.subplots(1, 2, figsize=(12, 6))\n        for ax, image in zip(axes, (self.image_a, self.image_b)):\n            ax.imshow(image.data, cmap=\"gray\" if image.data.ndim == 2 else None)\n            ax.set_title(f\"{image.name} {image.shape}\")\n            ax.axis(\"off\")\n        plt.tight_layout()\n        plt.show()\n\n    def run(self) -> None:\n        self.compare()\n\n\nif __name__ == \"__main__\":\n    Main().run()\n"
+    },
+    "tool_use_id": "toolu_01SJEpbWGGSrBDMgZzzzKxq8__vscode-1794470419590",
+    "cwd": "<workspace>"
+  }
+}

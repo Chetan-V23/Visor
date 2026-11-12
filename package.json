@@ -5,9 +5,10 @@
   "packageManager": "pnpm@10.20.0",
   "scripts": {
     "dev": "pnpm --filter desktop dev",
-    "build": "pnpm --filter desktop build",
+    "build": "pnpm --filter hook build && pnpm --filter desktop build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test:unit": "vitest run",
+    "test:unit": "pnpm --filter hook build && vitest run",
+    "setup:hooks": "pnpm build && node apps/hook/dist/install.js",
     "test:ui": "pnpm build && playwright test",
     "test": "pnpm test:unit && pnpm test:ui"
   },

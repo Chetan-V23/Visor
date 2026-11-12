@@ -32,6 +32,9 @@ importers:
       '@fontsource/space-grotesk':
         specifier: ^5.2.10
         version: 5.3.0
+      '@visor/bridge':
+        specifier: workspace:*
+        version: link:../../packages/bridge
       '@visor/theme':
         specifier: workspace:*
         version: link:../../packages/theme
@@ -69,6 +72,22 @@ importers:
       vite:
         specifier: ^7.2.2
         version: 7.3.8(@types/node@22.20.5)
+
+  apps/hook:
+    dependencies:
+      '@visor/bridge':
+        specifier: workspace:*
+        version: link:../../packages/bridge
+    devDependencies:
+      esbuild:
+        specifier: ^0.25.12
+        version: 0.25.12
+
+  packages/bridge:
+    dependencies:
+      zod:
+        specifier: ^4.1.12
+        version: 4.6.7
 
   packages/theme: {}
 
@@ -1376,6 +1395,9 @@ packages:
   yauzl@2.10.0:
     resolution: {integrity: sha512-p4a9I6X6nu6IhoGmBqAcbJy1mlC4j27vEPZX9F4L4/vZT3Lyq1VkFHw/V/PUcB9Buo+DG3iHkT0x3Qya58zc3g==}
 
+  zod@4.6.7:
+    resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
+
   zustand@4.5.7:
     resolution: {integrity: sha512-CHOUy7mu3lbD6o6LJLfllpjkzhHXSBlX8B9+qPddUsIfeF5S/UZ5q0kmCsnRqT1UHFQZchNFDDzMbQsuesHWlw==}
     engines: {node: '>=12.7.0'}
@@ -2590,6 +2612,8 @@ snapshots:
     dependencies:
       buffer-crc32: 0.2.13
       fd-slicer: 1.1.0
+
+  zod@4.6.7: {}
 
   zustand@4.5.7(@types/react@19.3.0)(react@19.3.1):
     dependencies:
