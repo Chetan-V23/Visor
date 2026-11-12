@@ -1,0 +1,13 @@
+:root {
+  --visor-deleted: #C44A3A;
+  --visor-diagram: #D97A2B;
+  --visor-app: #F2D479;
+  --visor-added: #6FAF4F;
+  --visor-deleted-background: #F5DCD6;
+  --visor-added-background: #E1EED7;
+  --visor-surface: #FFF7DC;
+  --visor-surface-raised: #FFFCF2;
+  --visor-ink: #000000;
+  --visor-muted: #534B38;
+  --visor-border: #00000024;
+}

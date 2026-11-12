@@ -1,0 +1,50 @@
+{
+  "session": {
+    "name": "Refactor the checkout flow",
+    "project": "shop-service",
+    "branch": "feat/checkout"
+  },
+  "classes": [
+    {
+      "id": "cart",
+      "name": "Cart",
+      "file": "src/shop/cart.py",
+      "methods": [
+        { "id": "cart-init", "name": "__init__(self)", "signature": "def __init__(self) -> None", "docstring": "Create an empty shopping cart.", "change": "unchanged" },
+        { "id": "cart-add", "name": "add_item(self, item)", "signature": "def add_item(self, item: Item) -> None", "docstring": "Add an item to the cart and update its total.", "change": "added" },
+        { "id": "cart-total", "name": "total(self)", "signature": "def total(self) -> Decimal", "docstring": "Return the total price of all items in the cart.", "change": "unchanged" },
+        { "id": "cart-checkout", "name": "checkout(self)", "signature": "def checkout(self) -> Invoice", "docstring": "Legacy checkout entry point. Replaced by CheckoutService.submit.", "change": "deleted" }
+      ]
+    },
+    {
+      "id": "checkout",
+      "name": "CheckoutService",
+      "file": "src/shop/checkout.py",
+      "methods": [
+        { "id": "checkout-init", "name": "__init__(self, cart)", "signature": "def __init__(self, cart: Cart) -> None", "docstring": "Initialize checkout with the current shopping cart.", "change": "unchanged" },
+        { "id": "checkout-validate", "name": "validate(self)", "signature": "def validate(self) -> bool", "docstring": "Check that the cart contains valid, available items.", "change": "added" },
+        { "id": "checkout-submit", "name": "submit(self)", "signature": "def submit(self) -> Invoice", "docstring": "Validate the cart and issue an invoice for checkout.", "change": "added" }
+      ]
+    },
+    {
+      "id": "invoice",
+      "name": "Invoice",
+      "file": "src/shop/invoice.py",
+      "methods": [
+        { "id": "invoice-init", "name": "__init__(self, items)", "signature": "def __init__(self, items: list[Item]) -> None", "docstring": "Create an invoice from a list of purchased items.", "change": "unchanged" },
+        { "id": "invoice-amount", "name": "amount(self)", "signature": "def amount(self) -> Decimal", "docstring": "Return the amount due for this invoice.", "change": "unchanged" },
+        { "id": "invoice-save", "name": "save(self)", "signature": "def save(self) -> None", "docstring": "Persist the invoice to the repository.", "change": "added" }
+      ]
+    }
+  ],
+  "edges": [
+    { "id": "cart-checkout", "from": "cart", "to": "checkout", "label": "uses" },
+    { "id": "checkout-invoice", "from": "checkout", "to": "invoice", "label": "creates" }
+  ],
+  "changes": [
+    { "id": "change-4", "number": 4, "summary": "Extract checkout service", "time": "14:32:08", "files": 2, "added": 24, "deleted": 8, "classId": "checkout" },
+    { "id": "change-3", "number": 3, "summary": "Add invoice persistence", "time": "14:31:42", "files": 1, "added": 12, "deleted": 0, "classId": "invoice" },
+    { "id": "change-2", "number": 2, "summary": "Update cart items", "time": "14:30:16", "files": 1, "added": 9, "deleted": 3, "classId": "cart" },
+    { "id": "change-1", "number": 1, "summary": "Create checkout classes", "time": "14:29:03", "files": 3, "added": 46, "deleted": 0, "classId": "cart" }
+  ]
+}
