@@ -99,6 +99,7 @@ export function MethodTooltipProvider({ children, changeId }: { children: ReactN
 function MethodRow({ method }: { method: DiagramMethod }) {
   const tooltip = useContext(TooltipContext)
   if (!tooltip) throw new Error('Method rows require a tooltip provider.')
+  const edited = method.change === 'unchanged' && method.modified === true
   return (
       <button
         type="button"
@@ -110,8 +111,8 @@ function MethodRow({ method }: { method: DiagramMethod }) {
         onBlur={() => tooltip.hideSoon(method.id)}
         onKeyDown={(event) => { if (event.key === 'Escape') tooltip.close() }}
       >
-        <span className="method-marker" aria-label={method.change}>
-          {method.change === 'added' ? <Plus size={12} /> : method.change === 'deleted' ? <Minus size={12} /> : <span aria-hidden="true">.</span>}
+        <span className="method-marker" aria-label={edited ? 'edited' : method.change}>
+          {method.change === 'added' ? <Plus size={12} /> : method.change === 'deleted' ? <Minus size={12} /> : edited ? <span className="method-edited-dot" title="Edited method" aria-hidden="true" /> : <span aria-hidden="true">.</span>}
         </span>
         <span className="method-name">{method.name}</span>
       </button>

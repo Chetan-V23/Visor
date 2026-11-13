@@ -1,0 +1,22 @@
+{
+  "id": "3277f3bf-4f50-45b8-9f6a-c4d102c262b0",
+  "source": "copilot",
+  "event": "preToolUse",
+  "receivedAt": 1794551217576,
+  "payload": {
+    "timestamp": "2026-11-13T06:26:57.012Z",
+    "hook_event_name": "PreToolUse",
+    "session_id": "0a96c8c1-aaa1-45b3-a9c3-3b61c52c192a",
+    "transcript_path": "<path>",
+    "tool_name": "get_errors",
+    "tool_input": {
+      "filePaths": [
+        "<workspace>\\Constants\\CMBDUserMessageConstants.py",
+        "<workspace>\\UIControls\\Views\\CMBDHeaderView.py",
+        "<workspace>\\CMBDStandaloneBootstrapper.py"
+      ]
+    },
+    "tool_use_id": "call_mYfrRXCeQjaB0eox6jl97Eoh__vscode-1794550904172",
+    "cwd": "<workspace>"
+  }
+}

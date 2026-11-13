@@ -1,0 +1,19 @@
+{
+  "id": "d35f2586-77ca-49be-9cd0-b61bd65c2140",
+  "source": "copilot",
+  "event": "preToolUse",
+  "receivedAt": 1794551231945,
+  "payload": {
+    "timestamp": "2026-11-13T06:27:11.320Z",
+    "hook_event_name": "PreToolUse",
+    "session_id": "0a96c8c1-aaa1-45b3-a9c3-3b61c52c192a",
+    "transcript_path": "<path>",
+    "tool_name": "file_search",
+    "tool_input": {
+      "query": "**/launch.json",
+      "maxResults": 20
+    },
+    "tool_use_id": "call_DZ0aghgGTmtF2CBs8PnpnUKq__vscode-1794550904174",
+    "cwd": "<workspace>"
+  }
+}

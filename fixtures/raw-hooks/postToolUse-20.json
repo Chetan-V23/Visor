@@ -1,0 +1,20 @@
+{
+  "id": "00961a66-22b7-429b-a61b-ec33a4bcbd77",
+  "source": "copilot",
+  "event": "postToolUse",
+  "receivedAt": 1794551234564,
+  "payload": {
+    "timestamp": "2026-11-13T06:27:14.009Z",
+    "hook_event_name": "PostToolUse",
+    "session_id": "0a96c8c1-aaa1-45b3-a9c3-3b61c52c192a",
+    "transcript_path": "<path>",
+    "tool_name": "file_search",
+    "tool_input": {
+      "query": "**/*Standalone*.bat",
+      "maxResults": 20
+    },
+    "tool_response": "",
+    "tool_use_id": "call_XpFZJeHV63fQOKdGstUF2R8H__vscode-1794550904175",
+    "cwd": "<workspace>"
+  }
+}

@@ -57,12 +57,54 @@ export function toDiagramView(model: CodeModel, change: Change | null): Pick<Dia
     }
   }
   const owners = new Map<string, string>()
+  const classesByFile = new Map<string, CodeModel['classes']>()
   for (const symbol of classes.values()) {
     owners.set(symbol.id, symbol.id)
     for (const member of [...symbol.methods, ...symbol.fields]) owners.set(member.id, symbol.id)
+    if (!removedClasses.has(symbol.id)) {
+      const siblings = classesByFile.get(symbol.file) ?? []
+      siblings.push(symbol)
+      classesByFile.set(symbol.file, siblings)
+    }
   }
+  const touchLine = (file: string, line: number, deleted = false): void => {
+    let closest: CodeModel['classes'][number] | undefined
+    let smallestSpan = Infinity
+    for (const symbol of classesByFile.get(file) ?? []) {
+      const range = symbol.range
+      if (!range || line < range.start.line || line > range.end.line || (line === range.end.line && range.end.column === 0)) continue
+      const span = range.end.line - range.start.line
+      if (span < smallestSpan) { closest = symbol; smallestSpan = span }
+    }
+    if (deleted && closest?.range?.start.line === line) { touchLine(file, line - 1); return }
+    if (closest) modifiedClasses.add(closest.id)
+  }
+  const touchedFiles = new Set(change?.files.map((file) => file.path))
+  for (const delta of change?.delta ?? []) {
+    if (delta.op === 'code.hunks') {
+      const owner = delta.symbolId ? owners.get(delta.symbolId) : undefined
+      if (owner) modifiedClasses.add(owner)
+      for (const hunk of delta.hunks) {
+        let line = hunk.newStart
+        for (const entry of hunk.lines) {
+          if (entry.kind !== 'context') touchLine(delta.file, line, entry.kind === 'deleted')
+          if (entry.kind !== 'deleted') line++
+        }
+      }
+    } else if (delta.op === 'edge.add' || delta.op === 'edge.remove') {
+      const evidence = delta.relation.evidence?.filter((item) => touchedFiles.has(item.file) && item.range) ?? []
+      for (const item of evidence) if (item.range) touchLine(item.file, item.range.start.line)
+      if (evidence.length === 0) {
+        const source = classes.get(owners.get(delta.relation.from) ?? delta.relation.from)
+        if (source && touchedFiles.has(source.file)) modifiedClasses.add(source.id)
+      }
+    }
+  }
+  const visibleClasses = change && change.cause.kind !== 'baseline'
+    ? new Set([...addedClasses, ...removedClasses, ...modifiedClasses])
+    : new Set(classes.keys())
   return {
-    classes: [...classes.values()].map((symbol) => {
+    classes: [...classes.values()].filter((symbol) => visibleClasses.has(symbol.id)).map((symbol) => {
       const removed = removedMembers.get(symbol.id) ?? []
       const removedIds = new Set(removed.map((method) => method.id))
       return {
@@ -78,7 +120,7 @@ export function toDiagramView(model: CodeModel, change: Change | null): Pick<Dia
     edges: [...relations.entries()].flatMap(([id, entry]) => {
       const from = owners.get(entry.relation.from)
       const to = owners.get(entry.relation.to)
-      return from && to ? [{ id, from, to, label: entry.relation.label ?? entry.relation.kind, kind: entry.relation.kind, certainty: entry.relation.certainty, evidence: entry.relation.evidence, change: entry.change }] : []
+      return from && to && visibleClasses.has(from) && visibleClasses.has(to) ? [{ id, from, to, label: entry.relation.label ?? entry.relation.kind, kind: entry.relation.kind, certainty: entry.relation.certainty, evidence: entry.relation.evidence, change: entry.change }] : []
     })
   }
 }

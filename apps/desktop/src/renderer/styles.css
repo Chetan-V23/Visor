@@ -73,6 +73,7 @@ button svg { flex-shrink: 0; }
 .method-row { display: flex; align-items: flex-start; gap: 6px; border: 0; border-radius: 3px; background: transparent; padding: 7px 5px; width: 100%; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.6; }
 .method-name { overflow-wrap: anywhere; min-width: 0; }
 .method-marker { display: flex; align-items: center; justify-content: center; flex: 0 0 13px; height: 17px; font-size: 17px; }
+.method-edited-dot { width: 8px; height: 8px; border: 1px solid #00000080; border-radius: 50%; background: var(--visor-app); }
 .method-added { color: var(--visor-added); background: var(--visor-added-background); }
 .method-deleted { color: var(--visor-deleted); background: var(--visor-deleted-background); }
 .method-deleted .method-name { text-decoration: line-through; }

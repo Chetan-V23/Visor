@@ -1,0 +1,23 @@
+{
+  "id": "8002ae93-9df7-4ae8-8e27-68d35317b0a7",
+  "source": "copilot",
+  "event": "postToolUse",
+  "receivedAt": 1794551219152,
+  "payload": {
+    "timestamp": "2026-11-13T06:26:58.605Z",
+    "hook_event_name": "PostToolUse",
+    "session_id": "0a96c8c1-aaa1-45b3-a9c3-3b61c52c192a",
+    "transcript_path": "<path>",
+    "tool_name": "get_errors",
+    "tool_input": {
+      "filePaths": [
+        "<workspace>\\Constants\\CMBDUserMessageConstants.py",
+        "<workspace>\\UIControls\\Views\\CMBDHeaderView.py",
+        "<workspace>\\CMBDStandaloneBootstrapper.py"
+      ]
+    },
+    "tool_response": "",
+    "tool_use_id": "call_mYfrRXCeQjaB0eox6jl97Eoh__vscode-1794550904172",
+    "cwd": "<workspace>"
+  }
+}

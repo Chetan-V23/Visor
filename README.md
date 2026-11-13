@@ -4,6 +4,8 @@ Visor is a standalone Electron app that turns Copilot Python file edits into cla
 
 The native app shows actual stored sessions, not the hardcoded sample. Select a change to see its graph from saved snapshots. **Live** follows new changes, and selecting an older entry pauses it. Changed classes glow. The first observed prompt becomes the session title, with the start time as a fallback. An app with no observed sessions starts empty.
 
+Edit diagrams show only touched classes and relationships between them. Added and removed classes remain visible with their change colors. An untouched sibling in an edited file is not included just because the file changed. Text hunks use changed lines, not patch context, to find their containing class. Constants-only edits do not invent a class node. Stored models remain complete, and baseline snapshots still show the project for reference.
+
 Hover or focus a method to see its full stored source. Added lines are green, removed lines are red, and unchanged lines are black. The tooltip uses the selected change's snapshots, not the current file on disk. Long methods scroll. If source snapshots are missing, the tooltip shows the signature and a source-unavailable state.
 
 The browser-only preview still uses the sample because it has no preload or database access. Step 7 layout choreography, other language extractors, and the dedicated history git repository remain unimplemented.
