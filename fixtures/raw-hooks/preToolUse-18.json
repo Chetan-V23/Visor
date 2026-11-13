@@ -1,0 +1,20 @@
+{
+  "id": "5837f8b3-2e80-4d51-820c-139d52c80f95",
+  "source": "copilot",
+  "event": "preToolUse",
+  "receivedAt": 1794479954785,
+  "payload": {
+    "timestamp": "2026-11-12T10:39:13.482Z",
+    "hook_event_name": "PreToolUse",
+    "session_id": "516285aa-3397-4f68-8faf-f8c6e674e121",
+    "transcript_path": "<path>",
+    "tool_name": "memory",
+    "tool_input": {
+      "command": "create",
+      "path": "<path>",
+      "file_text": "- Python package installation tools can report success while the configured executable still cannot import the package. Verify with the exact executable; if mismatched, use that executable's `-m pip` as a fallback.\n"
+    },
+    "tool_use_id": "call_5M18whT6rToPKCWvYeg0cX9K__vscode-1794479217185",
+    "cwd": "<workspace>"
+  }
+}

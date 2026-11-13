@@ -1,0 +1,20 @@
+{
+  "id": "fe3f8ef9-7ae1-4f11-bb68-a4081334c76f",
+  "source": "copilot",
+  "event": "postToolUse",
+  "receivedAt": 1794471169286,
+  "payload": {
+    "timestamp": "2026-11-12T08:12:48.352Z",
+    "hook_event_name": "PostToolUse",
+    "session_id": "ece4532f-6dcb-4f27-b6d5-b23387f0f192",
+    "transcript_path": "<path>",
+    "tool_name": "apply_patch",
+    "tool_input": {
+      "input": "*** Begin Patch\n*** Update File: <workspace>\\image_compare.py\n@@ class Main\n-    IMAGE_A_PATH = Path(\"data/image_a.npy\")\n-    IMAGE_B_PATH = Path(\"data/image_b.npy\")\n+    IMAGE_A_PATH = Path(r\"<path>\")\n+    IMAGE_B_PATH = Path(r\"<path>\")\n*** End Patch",
+      "explanation": "Set the comparison inputs to the two requested absolute Windows paths."
+    },
+    "tool_response": "",
+    "tool_use_id": "call_Vba6OJtN5YhGzjNijBu8gUSZ__vscode-1794471077239",
+    "cwd": "<workspace>"
+  }
+}

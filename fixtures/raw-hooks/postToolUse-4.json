@@ -1,0 +1,19 @@
+{
+  "id": "70d942c0-7d47-4109-afcc-47fa8d38a44c",
+  "source": "copilot",
+  "event": "postToolUse",
+  "receivedAt": 1794479477662,
+  "payload": {
+    "timestamp": "2026-11-12T10:31:16.891Z",
+    "hook_event_name": "PostToolUse",
+    "session_id": "516285aa-3397-4f68-8faf-f8c6e674e121",
+    "transcript_path": "<path>",
+    "tool_name": "configure_python_environment",
+    "tool_input": {
+      "resourcePath": "<workspace>\\image_compare.py"
+    },
+    "tool_response": "A Python Environment has been configured.  \nFollowing is the information about the Python environment:\n1. Environment Type: system\n2. Version: 3.10.0\n\n3. Command Prefix to run Python in a terminal is: `<path>\nInstead of running `Python sample.py` in the terminal, you will now run: `<path> sample.py`\nSimilarly instead of running `Python -c \"import sys;....\"` in the terminal, you will now run: `<path> -c \"import sys;....\"`\n",
+    "tool_use_id": "call_cf2ToFaY4XPqDk6FTUW2cNqo__vscode-1794479217172",
+    "cwd": "<workspace>"
+  }
+}

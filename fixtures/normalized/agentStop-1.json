@@ -1,0 +1,15 @@
+[
+  {
+    "v": 1,
+    "id": "a5048d6d-6635-4198-82bb-3afe6015d710",
+    "sessionId": "27f8abc8-61fa-4c6e-a74a-749faa1e02a4",
+    "seq": 0,
+    "ts": 1794470459026,
+    "source": "copilot",
+    "agentTimestamp": "2026-11-12T08:00:57.441Z",
+    "kind": "turn.ended",
+    "payload": {
+      "stopHookActive": false
+    }
+  }
+]

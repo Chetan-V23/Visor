@@ -1,0 +1,22 @@
+{
+  "id": "5b1f3ed9-cd6b-489c-8922-b1b4d23950cc",
+  "source": "copilot",
+  "event": "postToolUse",
+  "receivedAt": 1794479686742,
+  "payload": {
+    "timestamp": "2026-11-12T10:34:45.868Z",
+    "hook_event_name": "PostToolUse",
+    "session_id": "516285aa-3397-4f68-8faf-f8c6e674e121",
+    "transcript_path": "<path>",
+    "tool_name": "run_in_terminal",
+    "tool_input": {
+      "command": "& '<path>' -m pip show nibabel numpy matplotlib | Select-String '^(Name|Version|Location):'",
+      "explanation": "Extract only package names, versions, and installation paths.",
+      "goal": "Check package locations",
+      "mode": "sync"
+    },
+    "tool_response": "WARNING: Package(s) not found: nibabel\n\nName: numpy\nVersion: 2.2.6\nLocation: \n<path>\nName: matplotlib\nVersion: 3.10.9\nLocation: \n<path>",
+    "tool_use_id": "call_b3jFRx2ZoYprLiE8Gdmln6qN__vscode-1794479217182",
+    "cwd": "<workspace>"
+  }
+}

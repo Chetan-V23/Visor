@@ -3,7 +3,7 @@ import type { HookSnapshot } from '@visor/bridge'
 import { X } from 'lucide-react'
 import { IconButton } from './IconButton'
 
-export function Settings({ hooks, onClose }: { hooks: HookSnapshot | null; onClose: () => void }) {
+export function Settings({ hooks, preview, onClose }: { hooks: HookSnapshot | null; preview: boolean; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const [debugEnabled, setDebugEnabled] = useState(hooks?.debugEnabled ?? false)
   const [error, setError] = useState<string | null>(null)
@@ -30,7 +30,7 @@ export function Settings({ hooks, onClose }: { hooks: HookSnapshot | null; onClo
           <div><dt><span className="color-swatch swatch-deleted" />Deleted text</dt><dd>#C44A3A</dd></div>
         </dl>
         <h3>Session</h3>
-        <dl className="session-settings"><div><dt>Data source</dt><dd>Sample fixture</dd></div><div><dt>Language</dt><dd>Python</dd></div></dl>
+        <dl className="session-settings"><div><dt>Data source</dt><dd>{preview ? 'Sample fixture' : 'Stored history'}</dd></div><div><dt>Language</dt><dd>Python</dd></div></dl>
         {hooks && <>
           <h3>Hook connection</h3>
           <dl className="session-settings">
@@ -50,7 +50,13 @@ export function Settings({ hooks, onClose }: { hooks: HookSnapshot | null; onClo
                 setError('Could not update the debug setting.')
               })
             }} /></label>
-            <p role="alert" className="settings-error">{error ?? hooks.captureError}</p>
+            <p role="alert" className="settings-error">{error ?? hooks.captureError ?? hooks.normalizationError}</p>
+            {hooks.debugEnabled && <section className="raw-events" aria-labelledby="normalized-events-title">
+              <h3 id="normalized-events-title">Normalized events <span>{hooks.normalizedEvents?.length ?? 0}</span></h3>
+              <ol>{hooks.normalizedEvents?.map((event) => <li key={event.id} data-testid="normalized-hook-entry">
+                <details><summary><span>{event.kind}</span><time>{new Date(event.ts).toLocaleTimeString()}</time></summary><pre>{JSON.stringify(event, null, 2)}</pre></details>
+              </li>)}</ol>
+            </section>}
             {hooks.debugEnabled && <section className="raw-events" aria-labelledby="raw-events-title">
               <h3 id="raw-events-title">Raw hook events <span>{hooks.events.length}</span></h3>
               <ol>

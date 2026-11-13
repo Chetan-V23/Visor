@@ -1,0 +1,16 @@
+{
+  "name": "@visor/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "test": "vitest run" },
+  "dependencies": {
+    "@visor/bridge": "workspace:*",
+    "@visor/protocol": "workspace:*",
+    "web-tree-sitter": "0.20.8",
+    "tree-sitter-wasms": "^0.1.13",
+    "diff": "^8.0.2",
+    "zod": "^4.1.12"
+  }
+}

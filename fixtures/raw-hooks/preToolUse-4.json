@@ -1,0 +1,19 @@
+{
+  "id": "1857c054-479c-4f5f-b5a4-cf93f868a670",
+  "source": "copilot",
+  "event": "preToolUse",
+  "receivedAt": 1794479327664,
+  "payload": {
+    "timestamp": "2026-11-12T10:28:46.925Z",
+    "hook_event_name": "PreToolUse",
+    "session_id": "516285aa-3397-4f68-8faf-f8c6e674e121",
+    "transcript_path": "<path>",
+    "tool_name": "apply_patch",
+    "tool_input": {
+      "input": "*** Begin Patch\n*** Update File: <workspace>\\image_compare.py\n@@\n from pathlib import Path\n \n import matplotlib.pyplot as plt\n+import nibabel as nib\n import numpy as np\n@@\n     def shape(self) -> tuple[int, ...]:\n         return self.data.shape\n \n \n+class NiftiImage:\n+    def __init__(self, path: str | Path):\n+        self.path = Path(path)\n+        self.image = nib.load(self.path)\n+        self.data: np.ndarray = self.image.get_fdata()\n+\n+    @property\n+    def name(self) -> str:\n+        return self.path.name\n+\n+    @property\n+    def shape(self) -> tuple[int, ...]:\n+        return self.data.shape\n+\n+\n class Main:\n@@\n         plt.tight_layout()\n         plt.show()\n \n+    def compare_nifti(\n+        self,\n+        image_a_path: str | Path,\n+        image_b_path: str | Path,\n+        slice_index: int | None = None,\n+    ) -> None:\n+        images = (NiftiImage(image_a_path), NiftiImage(image_b_path))\n+        slices = []\n+        for image in images:\n+            if image.data.ndim == 2:\n+                slices.append(image.data)\n+            elif image.data.ndim == 3:\n+                index = image.shape[2] // 2 if slice_index is None else slice_index\n+                if not 0 <= index < image.shape[2]:\n+                    raise ValueError(f\"Slice index {index} is out of bounds for {image.name}\")\n+                slices.append(image.data[:, :, index])\n+            else:\n+                raise ValueError(f\"Expected a 2D or 3D NIfTI image: {image.name} {image.shape}\")\n+\n+        fig, axes = plt.subplots(1, 2, figsize=(12, 6))\n+        for ax, image, data in zip(axes, images, slices):\n+            ax.imshow(data, cmap=\"gray\")\n+            ax.set_title(f\"{image.name} {image.shape}\")\n+            ax.axis(\"off\")\n+        plt.tight_layout()\n+        plt.show()\n+\n     def run(self) -> None:\n         self.compare()\n*** End Patch",
+      "explanation": "Add NiftiImage as the third class and a side-by-side NIfTI slice comparison method to Main."
+    },
+    "tool_use_id": "call_c5orby3Bq8DUN0fkn61Z8yzv__vscode-1794479217171",
+    "cwd": "<workspace>"
+  }
+}

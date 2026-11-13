@@ -1,0 +1,6 @@
+{
+  "frames": [
+    { "capture": "preToolUse-4.json", "files": [{ "path": "image_compare.py", "before": "../../python/nifti-before.py", "after": "../../python/nifti-after.py" }] },
+    { "capture": "postToolUse-3.json", "files": [{ "path": "image_compare.py", "before": "../../python/nifti-before.py", "after": "../../python/nifti-after.py" }] }
+  ]
+}

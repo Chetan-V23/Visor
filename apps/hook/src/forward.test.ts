@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -37,6 +37,22 @@ async function runCli({ folder, input, event = 'postToolUse', disableLaunch = tr
 }
 
 describe('visor-hook CLI', () => {
+  it.each([
+    ['sessionStart', { tool_name: 'create_file' }],
+    ['userPromptSubmitted', { prompt: 'Make a plan' }],
+    ['agentStop', {}],
+    ['preToolUse', { tool_name: 'read_file' }],
+    ['postToolUse', { toolName: 'grep_search' }],
+    ['PreToolUse', { tool_name: 'run_in_terminal' }],
+    ['preToolUse', { tool_name: 'unknown_tool' }]
+  ])('does not launch for %s with %j', async (event, payload) => {
+    const folder = await temporaryFolder()
+    const launcher = "require('node:fs').writeFileSync(require('node:path').join(process.env.VISOR_DATA_DIR, 'launched.json'), '{}')"
+    await writeJsonAtomic(join(folder, 'config.json'), { appPath: process.execPath, appArgs: ['--eval', launcher] })
+    expect(await runCli({ folder, input: JSON.stringify(payload), event, disableLaunch: false })).toEqual({ code: 0, stdout: '{}\n', stderr: '' })
+    expect(await readdir(folder)).not.toContain('launched.json')
+  })
+
   it.runIf(process.platform === 'win32')('forwards stdin through the generated PowerShell hook command', async () => {
     const folder = await temporaryFolder()
     const received: RawHook[] = []
@@ -95,7 +111,11 @@ describe('visor-hook CLI', () => {
     expect(await runCli({ folder, input: '{}' })).toEqual({ code: 0, stdout: '{}\n', stderr: '' })
   })
 
-  it('launches a configured mock app and waits for its fresh runtime', async () => {
+  it.each([
+    ['preToolUse', { tool_name: 'create_file' }],
+    ['PreToolUse', { toolName: 'replace_string_in_file' }],
+    ['postToolUse', { tool_name: 'multi_replace_string_in_file' }]
+  ])('launches a configured mock app for %s with %j and waits for its fresh runtime', async (event, payload) => {
     const folder = await temporaryFolder()
     const launcher = `
       const http = require('node:http');
@@ -124,9 +144,9 @@ describe('visor-hook CLI', () => {
     `
     const argumentsToPreserve = ['folder with spaces', 'apostrophe\' and "quotes"', 'C:\\trailing\\']
     await writeJsonAtomic(join(folder, 'config.json'), { appPath: process.execPath, appArgs: ['--eval', launcher, '--', ...argumentsToPreserve] })
-    expect(await runCli({ folder, input: '{"sessionId":"cold-start"}', event: 'sessionStart', disableLaunch: false })).toEqual({ code: 0, stdout: '{}\n', stderr: '' })
+    expect(await runCli({ folder, input: JSON.stringify({ sessionId: 'cold-start', ...payload }), event, disableLaunch: false })).toEqual({ code: 0, stdout: '{}\n', stderr: '' })
     const input: unknown = JSON.parse(await readFile(join(folder, 'received.json'), 'utf8'))
-    expect(input).toMatchObject({ source: 'copilot', event: 'sessionStart', payload: { sessionId: 'cold-start' } })
+    expect(input).toMatchObject({ source: 'copilot', event, payload: { sessionId: 'cold-start', ...payload } })
     const receivedArguments: unknown = JSON.parse(await readFile(join(folder, 'args.json'), 'utf8'))
     expect(receivedArguments).toEqual(argumentsToPreserve)
   })

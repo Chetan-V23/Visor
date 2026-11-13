@@ -1,7 +1,8 @@
 import {
-  isSessionStart, MAX_RECENT_EVENTS, sessionIdFrom, type HookSnapshot, type RawHook
+  isFileChangeHook, MAX_RECENT_EVENTS, sessionIdFrom, type HookSnapshot, type RawHook
 } from '@visor/bridge'
 import { captureRaw, sanitizeRaw } from './raw-capture'
+import type { VisorEvent } from '@visor/protocol'
 
 export class HookMonitor {
   private events: RawHook[] = []
@@ -10,13 +11,15 @@ export class HookMonitor {
   private captureError: string | null = null
   private captureQueue: Promise<void> = Promise.resolve()
   private capturedIds = new Set<string>()
+  private normalizedEvents: VisorEvent[] = []
+  private normalizationError: string | null = null
 
   constructor(private readonly options: {
     port: number
     dataFolder: string
     captureFolder: string | null
     onSnapshot: (snapshot: HookSnapshot) => void
-    onSessionStart: () => void
+    onFileChange: () => void
   }) {}
 
   snapshot(): HookSnapshot {
@@ -28,7 +31,9 @@ export class HookMonitor {
       debugEnabled: this.debugEnabled,
       captureFolder: this.options.captureFolder,
       captureError: this.captureError,
-      events: this.debugEnabled ? structuredClone(this.events) : []
+      events: this.debugEnabled ? structuredClone(this.events) : [],
+      normalizedEvents: this.debugEnabled ? structuredClone(this.normalizedEvents) : [],
+      normalizationError: this.normalizationError
     }
   }
 
@@ -45,11 +50,21 @@ export class HookMonitor {
     if (this.events.some((event) => event.id === raw.id)) return
     const sessionId = sessionIdFrom(raw)
     if (sessionId) this.sessionId = sessionId
-    if (isSessionStart(raw.event)) this.options.onSessionStart()
+    if (isFileChangeHook(raw)) this.options.onFileChange()
     this.events.push(sanitizeRaw(raw))
     if (this.events.length > MAX_RECENT_EVENTS) this.events.shift()
     this.options.onSnapshot(this.snapshot())
     if (this.debugEnabled) this.enqueueCapture(raw)
+  }
+
+  recordNormalization(events: VisorEvent[], error: string | null = null): void {
+    this.normalizationError = error
+    for (const event of events) {
+      if (this.normalizedEvents.some((item) => item.id === event.id)) continue
+      this.normalizedEvents.push(structuredClone(event))
+      if (this.normalizedEvents.length > MAX_RECENT_EVENTS) this.normalizedEvents.shift()
+    }
+    this.options.onSnapshot(this.snapshot())
   }
 
   private enqueueCapture(raw: RawHook): void {

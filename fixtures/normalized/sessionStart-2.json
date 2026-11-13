@@ -1,0 +1,16 @@
+[
+  {
+    "v": 1,
+    "id": "eefd303e-a8db-43f2-96e0-b71f3816a312",
+    "sessionId": "27f8abc8-61fa-4c6e-a74a-749faa1e02a4",
+    "seq": 0,
+    "ts": 1794470429923,
+    "source": "copilot",
+    "agentTimestamp": "2026-11-12T08:00:28.889Z",
+    "kind": "session.started",
+    "payload": {
+      "workspaceId": "capture-workspace",
+      "model": "auto"
+    }
+  }
+]

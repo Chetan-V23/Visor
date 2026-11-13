@@ -1,0 +1,22 @@
+{
+  "id": "dd77f915-cda9-4978-bc73-fd34963e9a9f",
+  "source": "copilot",
+  "event": "postToolUse",
+  "receivedAt": 1794479719667,
+  "payload": {
+    "timestamp": "2026-11-12T10:35:17.756Z",
+    "hook_event_name": "PostToolUse",
+    "session_id": "516285aa-3397-4f68-8faf-f8c6e674e121",
+    "transcript_path": "<path>",
+    "tool_name": "run_in_terminal",
+    "tool_input": {
+      "command": "& '<path>' -m pip install nibabel",
+      "explanation": "Install nibabel in the exact interpreter after the package tool failed to make it importable.",
+      "goal": "Resolve missing NIfTI dependency",
+      "mode": "sync"
+    },
+    "tool_response": "Collecting nibabel\n  Downloading nibabel-5.4.2-py3-none-any.whl.metadata (8.9 kB)\nCollecting importlib-resources>=5.12 (from nibabel)\n  Downloading importlib_resources-7.1.0-py3-none-any.whl.metadata (4.0 kB)\nRequirement already satisfied: numpy>=1.25 in <path> (from nibabel) (2.2.6)\nRequirement already satisfied: packaging>=20 in <path> (from nibabel) (25.0)\nRequirement already satisfied: typing-extensions>=4.6 in <path> (from nibabel) (4.16.0)\nDownloading nibabel-5.4.2-py3-none-any.whl (3.3 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.3/3.3 MB 2.8 MB/s  0:00:01\nDownloading importlib_resources-7.1.0-py3-none-any.whl (37 kB)\nInstalling collected packages: importlib-resources, nibabel\nSuccessfully installed importlib-resources-7.1.0 nibabel-5.4.2\n\n[notice] A new release of pip is available: 25.3 -> 26.3\n[notice] To update, run: python.exe -m pip install --upgrade pip",
+    "tool_use_id": "call_j6cJDYDQkY8DP35SDbSUe5eh__vscode-1794479217183",
+    "cwd": "<workspace>"
+  }
+}

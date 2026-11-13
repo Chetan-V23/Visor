@@ -1,0 +1,22 @@
+{
+  "id": "c551f2d4-e362-467f-a415-f61a1bedce0d",
+  "source": "copilot",
+  "event": "postToolUse",
+  "receivedAt": 1794479661084,
+  "payload": {
+    "timestamp": "2026-11-12T10:34:20.353Z",
+    "hook_event_name": "PostToolUse",
+    "session_id": "516285aa-3397-4f68-8faf-f8c6e674e121",
+    "transcript_path": "<path>",
+    "tool_name": "grep_search",
+    "tool_input": {
+      "defaultMaxResults": 100,
+      "query": "WARNING|Name:|Version:|Location:",
+      "isRegexp": true,
+      "includePattern": "<path>"
+    },
+    "tool_response": "",
+    "tool_use_id": "call_VO7l81IGYzuvBzSz6UvgYgYU__vscode-1794479217180",
+    "cwd": "<workspace>"
+  }
+}

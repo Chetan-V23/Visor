@@ -1,5 +1,5 @@
-import type { HookBridge } from '@visor/bridge'
+import type { HistoryBridge, HookBridge } from '@visor/bridge'
 
 declare global {
-  interface Window { visorHooks?: HookBridge }
+  interface Window { visorHooks?: HookBridge; visorHistory?: HistoryBridge }
 }

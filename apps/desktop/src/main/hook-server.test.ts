@@ -16,6 +16,20 @@ async function start(onRaw: (raw: RawHook) => void = () => {}) {
 }
 
 describe('authenticated local hook server', () => {
+  it('accepts bounded semantic facts behind the same auth and rejects unobserved versions', async () => {
+    const received: unknown[] = []
+    const server = await startHookServer({ onRaw: () => {}, onSemantic: (document) => { received.push(document); return document.hash === 'a'.repeat(64) } })
+    servers.push(server)
+    const url = `http://127.0.0.1:${server.runtime.port}/semantic`
+    const headers = { Authorization: `Bearer ${server.runtime.token}`, 'Content-Type': 'application/json' }
+    const document = { v: 1, workspaceRoot: 'D:/project', file: 'main.py', hash: 'a'.repeat(64), provider: 'vscode', definitions: [] }
+    expect((await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(document) })).status).toBe(401)
+    expect((await fetch(url, { method: 'POST', headers: { ...headers, Origin: 'null' }, body: JSON.stringify(document) })).status).toBe(403)
+    expect((await fetch(url, { method: 'POST', headers, body: '{}' })).status).toBe(400)
+    expect((await fetch(url, { method: 'POST', headers, body: JSON.stringify({ ...document, hash: 'b'.repeat(64) }) })).status).toBe(409)
+    expect((await fetch(url, { method: 'POST', headers, body: JSON.stringify(document) })).status).toBe(202)
+    expect(received.at(-1)).toEqual(document)
+  })
   it('requires a token for health and ingest', async () => {
     const { url, headers } = await start()
     expect((await fetch(`${url}/health`)).status).toBe(401)

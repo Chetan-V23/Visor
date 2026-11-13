@@ -1,0 +1,19 @@
+{
+  "id": "a5f82d4a-4eca-47f4-8703-273e65e2efad",
+  "source": "copilot",
+  "event": "postToolUse",
+  "receivedAt": 1794479626900,
+  "payload": {
+    "timestamp": "2026-11-12T10:33:45.821Z",
+    "hook_event_name": "PostToolUse",
+    "session_id": "516285aa-3397-4f68-8faf-f8c6e674e121",
+    "transcript_path": "<path>",
+    "tool_name": "get_python_environment_details",
+    "tool_input": {
+      "resourcePath": "<workspace>\\image_compare.py"
+    },
+    "tool_response": "Following is the information about the Python environment:\n1. Environment Type: system\n2. Version: 3.10.0\n\n3. Command Prefix to run Python in a terminal is: `<path>\nInstead of running `Python sample.py` in the terminal, you will now run: `<path> sample.py`\nSimilarly instead of running `Python -c \"import sys;....\"` in the terminal, you will now run: `<path> -c \"import sys;....\"`\n4. Below is a list of the Python packages, each in the format <name> or <name> (<version>). The version may be omitted if unknown: \n- importlib_resources (7.1.0)\n- nibabel (5.4.2)\n- numpy (2.2.6)\n- packaging (26.3)\n- pip (21.2.3)\n- setuptools (57.4.0)\n- typing_extensions (4.16.0)",
+    "tool_use_id": "call_wyJj2kkL48GvVlyOrItVUMjc__vscode-1794479217177",
+    "cwd": "<workspace>"
+  }
+}

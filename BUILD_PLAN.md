@@ -2,6 +2,12 @@
 
 This plan builds Visor in seven steps. Each step ends in an outcome you can test before you start the next one. The plan follows the decisions D1–D7 in [FEASIBILITY_REPORT.md](FEASIBILITY_REPORT.md).
 
+## Implementation status
+
+Steps 1 through 6 are implemented. The native app uses actual Python snapshots and SQLite history. Automated checks cover recorded-hook replay, exact before and after states, restart persistence, live and paused selection, and responsive screenshots. Fresh Copilot sandbox demonstrations for steps 4 through 6 and the manual one-second update target remain unverified.
+
+The relationship follow-up adds source-backed ownership, associations, dependencies, static signal subscriptions, and hash-matched IDE definition facts. Dagre now supplies positions, routes, and label space. The [companion](apps/companion/README.md) packages as a local VSIX; live Pylance verification remains separate. Step 7 transition choreography is not implemented.
+
 ## Assumptions
 
 - **Desktop shell: Electron.** The report recommends it (open question 3). Electron runs the Node server in its main process, so one app holds the server, the database, and the UI. If you pick Tauri instead, steps 1, 2, and 5 change.
@@ -23,9 +29,10 @@ Create this layout in step 1 and fill it in as you go.
 ```text
 (repo root)
   apps/
+      cli/                replay, history dump, and fixture generation
     desktop/            Electron app. Main process: HTTP server, ingest, store. Renderer: React UI.
     hook/               visor-hook CLI that the agent hooks call
-    vscode-extension/   companion extension (after step 7)
+   companion/          optional hash-matched VS Code semantic bridge
   packages/
     protocol/           types and zod schemas for the normalized data (step 3)
     core/               pure functions: event normalizer, Python extractor, model differ (step 4)
@@ -42,7 +49,7 @@ Create this layout in step 1 and fill it in as you go.
 | Workspace and scripts | pnpm workspaces, TypeScript in strict mode |
 | Desktop build | Electron with electron-vite |
 | UI | React, React Flow, Framer Motion |
-| Layout | ELK.js (step 7) |
+| Layout | Dagre now; transition choreography remains step 7 |
 | Parsing | web-tree-sitter with tree-sitter-python (step 4) |
 | Schemas | zod |
 | Storage | better-sqlite3 (step 5) |
@@ -110,7 +117,7 @@ Step 2 captures real hook payloads. Step 3 then designs the normalized format fr
 
 ## Step 2: Create hooks that open the Visor app
 
-**Goal:** when a Copilot agent session starts in VS Code, the Visor window opens or comes to the front. The app does no analysis yet.
+**Goal:** when Copilot calls a file-create, edit, multi-edit, or patch tool in VS Code, Visor opens or comes to the front. Session start, planning, questions, and read-only tools do not trigger startup or focus. The app does no analysis yet.
 
 ### Build
 
@@ -122,7 +129,7 @@ Step 2 captures real hook payloads. Step 3 then designs the normalized format fr
 2. **Write the `visor-hook` CLI** in `apps/hook`.
    - It reads the event name from its first argument and the hook payload from stdin.
    - It wraps the payload as `{ id, source: "copilot", event, receivedAt, payload }`, with a new unique `id`.
-   - It reads `runtime.json`. If the app isn't running, it launches the app from `VISOR_APP_PATH` or from the path in `%APPDATA%\Visor\config.json`. Then it waits up to 3 seconds for `runtime.json` to appear.
+   - It reads `runtime.json`. If the app isn't running, only a file-changing pre/post tool event launches the app from `VISOR_APP_PATH` or `%APPDATA%\Visor\config.json`. Then it waits up to 3 seconds for a healthy runtime. Other events exit without launching or buffering. Windows startup must not inherit the hook's captured output pipes.
    - It posts to `/hooks/raw` with a 500 ms timeout.
    - It always exits with code 0, so it never blocks or breaks the agent.
 3. **Register the hooks in VS Code.** In the sandbox project, add a Copilot agent hook file for `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, and `Stop`. Each hook runs `visor-hook <event>`. Agent hooks are in preview, so confirm the file location and format in the VS Code documentation before you write the file.
@@ -139,7 +146,7 @@ Step 2 captures real hook payloads. Step 3 then designs the normalized format fr
 - **Automated:**
   - `visor-hook` unit tests run against a mock server. The CLI posts the wrapped payload. It exits with code 0 when the server is down. It also exits with code 0 when stdin isn't valid JSON.
   - Server tests check that `/health` returns 401 without the token and 200 with it, and that a request with an `Origin` header is rejected.
-- **Manual:** close Visor. Start a Copilot agent session in the sandbox project and ask it to edit a Python file. Visor opens, the header shows the session ID, and the debug list shows the session start, prompt, and tool events in order. Start a second session. The same window comes to the front.
+- **Manual:** close Visor. Planning, questions, and read-only tools leave it closed. Ask Copilot to edit a Python file. Visor opens and the header shows the session ID. Enable raw capture, then start another session while Visor is running to capture its start, prompt, and tool events. Read-only events do not focus the window; file edits bring the same window to the front. Events before cold startup are not buffered.
 
 **Done when** a real Copilot session opens Visor and `fixtures/raw-hooks/` holds a real payload for each event.
 
@@ -158,7 +165,7 @@ Record each decision in the README of `packages/protocol`. The table gives the r
 | What one entry in the changes bar means | One agent tool call that edits files, which is one `PostToolUse` event. Edits from other sources within 2 seconds merge into the same change. |
 | Symbol IDs | `<language>:<workspace-relative path>::<Class>[.<member>]`, for example `py:src/shop/cart.py::Cart.add_item`. The language prefix leaves room for C++ and C#. |
 | Paths | Relative to the workspace, with forward slashes |
-| Time | Epoch milliseconds, set by the Visor app when the event arrives. The agent's own timestamp stays as an extra field. |
+| Time | Epoch milliseconds from the Step 2 forwarder's `receivedAt`, preserving local ingress time. The agent's own timestamp stays as an extra field. |
 | Order | A per-session `seq` number that the app assigns |
 | Event IDs | The `id` that `visor-hook` creates in step 2, so a resent event is stored once |
 | Versioning | Every document carries `v: 1`. Added fields keep the version. Breaking changes bump it. |
@@ -167,7 +174,7 @@ Record each decision in the README of `packages/protocol`. The table gives the r
 
 1. **Map the raw fields.** For each captured payload, list the fields Visor needs and where each one sits in the payload. Visor needs at least the session ID, the tool name, the file paths, and the prompt text.
 2. **Define the types and zod schemas** in `packages/protocol`:
-   - `VisorEvent` is the envelope `{ v, id, sessionId, seq, ts, source, kind, payload }`. Its kinds are `session.started`, `session.ended`, `prompt.submitted`, `edit.pending`, `edit.applied`, `file.created`, `file.deleted`, and `file.renamed`.
+   - `VisorEvent` is the envelope `{ v, id, sessionId, seq, ts, source, kind, payload }`. Its kinds are `session.started`, `session.ended`, `turn.ended`, `prompt.submitted`, `edit.pending`, `edit.applied`, `file.created`, `file.deleted`, and `file.renamed`. `Stop` maps to `turn.ended`, not `session.ended`. Unknown post-tool outcomes stay explicit.
    - `CodeModel` holds the classes in the workspace. `ClassSymbol` is `{ id, name, file, range, bases, methods, fields }`. `MethodSymbol` is `{ id, name, signature, docstring, range, bodyHash }`. `Relation` is `{ from, to, kind }`, where `kind` is `"inherits"`, `"composes"`, `"calls"`, or `"imports"`.
    - `Change` is one entry in the changes bar: `{ id, sessionId, seq, ts, cause, summary, files, delta }`.
    - `GraphDelta` holds the operations from the feasibility report, such as `node.add` with an optional `insertedBetween`, `node.remove`, `member.change`, `edge.add`, and `edge.remove`.
@@ -244,7 +251,7 @@ The database lives at `%APPDATA%\Visor\visor.db`, outside the user's project (D7
 
 1. **Create the store** in `packages/store` with better-sqlite3 and numbered SQL migration files.
 2. **Hide SQLite behind interfaces.** The app uses `ChangeStore` and `SnapshotStore` and never runs SQL directly.
-3. **Record a baseline at session start.** On `session.started`, scan the project's Python files, extract the `CodeModel`, and save it as change 0 of the session.
+3. **Record a baseline at an observed session start.** On `session.started`, scan the project's Python files, extract the `CodeModel`, and save it as change 0. If cold startup missed that event, record before the first observed edit when possible. Mark a post-tool recovery snapshot as late rather than claiming it is the true session before-state. The protocol's baseline cause records the observation point.
 4. **Build the change pipeline.** On `edit.applied`, read the file, extract it, and diff it against the current model. Save the `Change`, its files, and its blobs in one transaction. Then notify the renderer.
 5. **Close sessions.** On `session.ended`, set `ended_at`.
 

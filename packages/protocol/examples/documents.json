@@ -1,0 +1,72 @@
+{
+  "VisorEvent": {
+    "valid": [
+      { "v": 1, "id": "eefd303e-a8db-43f2-96e0-b71f3816a312", "sessionId": "sample-session", "seq": 1, "ts": 1794470429923, "source": "copilot", "agentTimestamp": "2026-11-12T08:00:28.889Z", "kind": "session.started", "payload": { "workspaceId": "sample-project", "model": "auto" } },
+      { "v": 1, "id": "59256917-4cba-4e3a-bfc2-c19ec5b7b0ae", "sessionId": "sample-session", "seq": 2, "ts": 1794470435122, "source": "copilot", "kind": "prompt.submitted", "payload": { "text": "Create a Python image comparison class." } },
+      { "v": 1, "id": "4508c17a-baaa-4a0c-9add-7384850f24fd", "sessionId": "sample-session", "seq": 3, "ts": 1794470443104, "source": "copilot", "kind": "edit.pending", "payload": { "tool": "create_file", "toolCallId": "sample-call", "files": ["image_compare.py"], "intent": "create" } },
+      { "v": 1, "id": "fe3f8ef9-7ae1-4f11-bb68-a4081334c76f", "sessionId": "sample-session", "seq": 4, "ts": 1794471169286, "source": "copilot", "kind": "edit.applied", "payload": { "tool": "apply_patch", "toolCallId": "sample-call", "files": ["image_compare.py"], "intent": "edit", "outcome": "unknown" } },
+      { "v": 1, "id": "a5048d6d-6635-4198-82bb-3afe6015d710", "sessionId": "sample-session", "seq": 5, "ts": 1794470459026, "source": "copilot", "kind": "turn.ended", "payload": { "stopHookActive": false } },
+      { "v": 1, "id": "00000000-0000-4000-8000-000000000006", "sessionId": "sample-session", "seq": 6, "ts": 42, "source": "filesystem", "kind": "file.created", "payload": { "file": "image_compare.py" } },
+      { "v": 1, "id": "00000000-0000-4000-8000-000000000007", "sessionId": "sample-session", "seq": 7, "ts": 43, "source": "filesystem", "kind": "file.deleted", "payload": { "file": "old.py" } },
+      { "v": 1, "id": "00000000-0000-4000-8000-000000000008", "sessionId": "sample-session", "seq": 8, "ts": 44, "source": "vscode", "kind": "file.renamed", "payload": { "from": "old.py", "to": "new.py" } },
+      { "v": 1, "id": "00000000-0000-4000-8000-000000000009", "sessionId": "sample-session", "seq": 9, "ts": 45, "source": "copilot", "kind": "session.ended", "payload": { "reason": "Explicit session-end signal" } }
+    ],
+    "invalid": [
+      { "document": { "v": 2, "id": "00000000-0000-4000-8000-000000000001", "sessionId": "sample-session", "seq": 1, "ts": 42, "source": "copilot", "kind": "prompt.submitted", "payload": { "text": "Plan" } }, "errorPath": ["v"] },
+      { "document": { "v": 1, "id": "00000000-0000-4000-8000-000000000001", "sessionId": "sample-session", "seq": 1, "ts": 42, "source": "copilot", "kind": "edit.applied", "payload": { "tool": "apply_patch", "files": ["../private.py"], "intent": "edit", "outcome": "unknown" } }, "errorPath": ["payload", "files", 0] }
+    ]
+  },
+  "CodeModel": {
+    "valid": [{ "v": 1, "classes": [], "relations": [] }],
+    "invalid": [{ "document": { "v": 2, "classes": [], "relations": [] }, "errorPath": ["v"] }]
+  },
+  "Change": {
+    "valid": [
+      { "v": 1, "id": "00000000-0000-4000-8000-000000000010", "sessionId": "sample-session", "seq": 1, "ts": 42, "cause": { "kind": "tool", "eventId": "fe3f8ef9-7ae1-4f11-bb68-a4081334c76f", "tool": "apply_patch", "toolCallId": "sample-call" }, "summary": "Update comparison inputs", "files": [{ "path": "image_compare.py", "beforeHash": null, "afterHash": null, "added": 2, "deleted": 2 }], "delta": [] },
+      { "v": 1, "id": "00000000-0000-4000-8000-000000000011", "sessionId": "sample-session", "seq": 2, "ts": 43, "cause": { "kind": "external", "eventIds": ["00000000-0000-4000-8000-000000000007"], "source": "filesystem" }, "summary": "Remove old file", "files": [{ "path": "old.py", "beforeHash": null, "afterHash": null, "added": 0, "deleted": 1 }], "delta": [] },
+      { "v": 1, "id": "00000000-0000-4000-8000-000000000012", "sessionId": "sample-session", "seq": 0, "ts": 41, "cause": { "kind": "baseline", "eventId": "4508c17a-baaa-4a0c-9add-7384850f24fd", "observedAt": "before-first-edit" }, "summary": "Baseline before the first observed edit", "files": [], "delta": [] }
+    ],
+    "invalid": [{ "document": { "v": 1, "id": "not-an-id", "sessionId": "sample-session", "seq": 1, "ts": 42, "cause": { "kind": "tool", "eventId": "fe3f8ef9-7ae1-4f11-bb68-a4081334c76f", "tool": "apply_patch" }, "summary": "Update", "files": [], "delta": [] }, "errorPath": ["id"] }]
+  },
+  "GraphDelta": {
+    "valid": [
+      { "v": 1, "op": "node.add", "node": { "id": "py:src/c.py::C", "name": "C", "file": "src/c.py", "range": null, "bases": [], "methods": [], "fields": [] }, "insertedBetween": ["py:src/a.py::A", "py:src/b.py::B"] },
+      { "v": 1, "op": "node.remove", "node": { "id": "py:src/c.py::C", "name": "C", "file": "src/c.py", "range": null, "bases": [], "methods": [], "fields": [] } },
+      { "v": 1, "op": "node.rename", "from": "py:src/a.py::A", "to": "py:src/a.py::Renamed" },
+      { "v": 1, "op": "member.add", "classId": "py:src/c.py::C", "member": { "kind": "method", "id": "py:src/c.py::C.run", "name": "run", "signature": "def run(self) -> None", "docstring": "Run the operation.", "range": null, "bodyHash": null } },
+      { "v": 1, "op": "member.remove", "classId": "py:src/c.py::C", "member": { "kind": "method", "id": "py:src/c.py::C.run", "name": "run", "signature": "def run(self) -> None", "docstring": "Run the operation.", "range": null, "bodyHash": null } },
+      { "v": 1, "op": "member.change", "classId": "py:src/c.py::C", "before": { "kind": "field", "id": "py:src/c.py::C.value", "name": "value", "type": "int", "range": null }, "after": { "kind": "field", "id": "py:src/c.py::C.value", "name": "value", "type": "str", "range": null } },
+      { "v": 1, "op": "edge.add", "relation": { "from": "py:src/a.py::A", "to": "py:src/b.py::B", "kind": "calls", "certainty": "inferred" } },
+      { "v": 1, "op": "edge.remove", "relation": { "from": "py:src/a.py::A", "to": "py:src/b.py::B", "kind": "calls", "certainty": "inferred" } },
+      { "v": 1, "op": "code.hunks", "file": "src/c.py", "symbolId": "py:src/c.py::C.run", "hunks": [{ "oldStart": 2, "oldLines": 1, "newStart": 2, "newLines": 1, "lines": [{ "kind": "deleted", "text": "    return 1" }, { "kind": "added", "text": "    return 2" }] }] }
+    ],
+    "invalid": [{ "document": { "v": 1, "op": "edge.teleport", "from": "py:src/a.py::A", "to": "py:src/b.py::B" }, "errorPath": ["op"] }]
+  },
+  "ClassSymbol": {
+    "valid": [{ "id": "py:src/cart.py::Cart", "name": "Cart", "file": "src/cart.py", "range": { "start": { "line": 1, "column": 0 }, "end": { "line": 5, "column": 0 } }, "bases": [], "methods": [], "fields": [] }],
+    "invalid": [{ "document": { "id": "cart", "name": "Cart", "file": "src/cart.py", "range": null, "bases": [], "methods": [], "fields": [] }, "errorPath": ["id"] }]
+  },
+  "MethodSymbol": {
+    "valid": [{ "kind": "method", "id": "py:src/cart.py::Cart.total", "name": "total", "displayName": "total(self)", "signature": "def total(self) -> Decimal", "docstring": "Return the total.", "range": null, "bodyHash": null }],
+    "invalid": [{ "document": { "kind": "method", "id": "py:src/cart.py::Cart.total", "name": "total", "signature": "def total(self) -> Decimal", "docstring": "Return the total.", "range": null, "bodyHash": "not-a-hash" }, "errorPath": ["bodyHash"] }]
+  },
+  "FieldSymbol": {
+    "valid": [{ "kind": "field", "id": "py:src/cart.py::Cart.items", "name": "items", "type": "list[Item]", "range": null }],
+    "invalid": [{ "document": { "kind": "field", "id": "py:src/cart.py::Cart.items", "name": "items", "type": "list[Item]", "range": { "start": { "line": 3, "column": 4 }, "end": { "line": 2, "column": 0 } } }, "errorPath": ["range"] }]
+  },
+  "Relation": {
+    "valid": [
+      { "from": "py:src/cart.py::Cart", "to": "py:src/invoice.py::Invoice", "kind": "calls", "label": "creates", "certainty": "unknown" },
+      { "from": "py:src/cart.py::Cart", "to": "py:src/invoice.py::Invoice", "kind": "calls", "certainty": "inferred", "data": { "parameters": [{ "name": "items", "type": "list[Item]" }], "returnType": "Invoice" } }
+    ],
+    "invalid": [{ "document": { "from": "py:src/cart.py::Cart", "to": "py:src/invoice.py::Invoice", "kind": "teleports", "certainty": "unknown" }, "errorPath": ["kind"] }]
+  },
+  "FileModel": {
+    "valid": [{ "v": 1, "language": "py", "file": "src/cart.py", "classes": [], "functions": [], "imports": ["decimal"] }],
+    "invalid": [{ "document": { "v": 1, "language": "py", "file": "C:/private/cart.py", "classes": [], "functions": [], "imports": [] }, "errorPath": ["file"] }]
+  },
+  "SessionSummary": {
+    "valid": [{ "v": 1, "id": "sample-session", "title": null, "startedAt": 42, "startObserved": false, "project": { "id": "sample-project", "name": "shop-service", "branch": "main" } }],
+    "invalid": [{ "document": { "v": 1, "id": "sample-session", "title": null, "startedAt": -1, "startObserved": false, "project": { "id": "sample-project", "name": "shop-service", "branch": "main" } }, "errorPath": ["startedAt"] }]
+  }
+}

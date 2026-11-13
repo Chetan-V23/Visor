@@ -1,0 +1,21 @@
+{
+  "id": "00265273-b6d6-4537-b5b9-764232dea798",
+  "source": "copilot",
+  "event": "preToolUse",
+  "receivedAt": 1794479523882,
+  "payload": {
+    "timestamp": "2026-11-12T10:32:02.970Z",
+    "hook_event_name": "PreToolUse",
+    "session_id": "516285aa-3397-4f68-8faf-f8c6e674e121",
+    "transcript_path": "<path>",
+    "tool_name": "install_python_packages",
+    "tool_input": {
+      "packageList": [
+        "nibabel"
+      ],
+      "resourcePath": "<workspace>\\image_compare.py"
+    },
+    "tool_use_id": "call_SlAeBENgFbzli4tcjYiEYsmI__vscode-1794479217174",
+    "cwd": "<workspace>"
+  }
+}

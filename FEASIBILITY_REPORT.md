@@ -3,11 +3,17 @@
 **Visor** is a live visualizer that shows developers, in real time, the changes their coding agent is making.
 Date: 2026-11-06
 
+## Implementation status
+
+Steps 1 through 6 now run in Electron with Python source snapshots and SQLite history. The relationship follow-up adds inferred ownership, associations, dependencies, and static signal subscriptions. Visor owns graph classification and historical snapshots. A local VS Code companion supplies definition locations only for matching saved source and target hashes.
+
+The current analyzer supports Python, not C++ or C#. Dynamic event delivery, transition choreography, editor-only change capture, and the dedicated history repository remain future work. The companion builds and packages, but a live Pylance extension-host run remains unverified. See [README.md](README.md) for supported evidence and verification commands.
+
 ---
 
 ## Confirmed decisions
 
-These decisions answer the open questions from the first version of this report. Nothing has been built yet; this document only records the plan.
+These decisions answer the open questions from the first version of this report. They record the original scope; the status above identifies the implemented parts.
 
 | # | Topic | Decision | What it means for the design |
 |---|---|---|---|
@@ -161,7 +167,7 @@ flowchart LR
    - LSP data from the companion extension (call hierarchy, type hierarchy, resolved types, hover text). Required for data flow (D5).
 5. **Semantic differ**: compares the model before and after each edit and emits `GraphDelta`s with stable IDs.
 6. **Session store**: an append-only event log plus snapshots in the dedicated Visor history repo (D7).
-7. **Visor window**: a standalone desktop app (D4). It opens, or comes to the front, when a session starts.
+7. **Visor window**: a standalone desktop app (D4). It opens, or comes to the front, for file-changing agent tools. Planning, questions, session start, and read-only tools leave it alone.
 
 ### Draft contracts: normalized events and deltas
 
@@ -264,6 +270,7 @@ An agent can write a dozen files in a few seconds. Without controls, the animati
 
 - **Where it lives (D7):** in a **dedicated Visor history repository**, separate from the user's project repo, e.g. `git --git-dir=<visor-history-root>/<project-id>.git --work-tree=<project>`. The project repo gets no extra folders, branches, commits, or `.gitignore` entries.
 - **On `session.start`:** commit a snapshot of the workspace to the history repo.
+- **If session start was not observed:** capture before the first observed edit when possible. Label a post-edit recovery baseline as late; it cannot represent the original session before-state.
 - **During the session:** record each `edit.applied` as a row in the SQLite event log (stored next to the history repo), plus a commit in the history repo.
 - **On `session.end`:** commit a final snapshot and tag it with the session ID.
 

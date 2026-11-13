@@ -1,0 +1,29 @@
+{
+  "name": "visor-companion",
+  "displayName": "Visor Companion",
+  "description": "Version-matched code definitions for the local Visor diagram.",
+  "publisher": "visor-local",
+  "version": "0.1.0",
+  "license": "UNLICENSED",
+  "engines": { "vscode": "^1.95.0" },
+  "categories": ["Other"],
+  "extensionKind": ["workspace"],
+  "capabilities": { "untrustedWorkspaces": { "supported": false } },
+  "activationEvents": ["onStartupFinished"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [{ "command": "visor.refreshRelations", "title": "Visor: Refresh Code Relationships" }],
+    "configuration": {
+      "title": "Visor",
+      "properties": {
+        "visor.dataFolder": { "type": "string", "default": "", "scope": "machine", "description": "Local Visor data folder. Leave empty to use the default." }
+      }
+    }
+  },
+  "scripts": {
+    "build": "esbuild src/extension.ts --bundle --platform=node --target=node20 --format=cjs --external:vscode --outfile=dist/extension.js",
+    "package": "pnpm build && vsce package --no-dependencies --allow-missing-repository --skip-license --out visor-companion.vsix"
+  },
+  "dependencies": { "@visor/bridge": "workspace:*", "@visor/protocol": "workspace:*" },
+  "devDependencies": { "@types/vscode": "^1.95.0", "@vscode/vsce": "^3.7.0", "esbuild": "^0.25.12" }
+}

@@ -1,0 +1,18 @@
+{
+  "common": {
+    "id": "id", "source": "source", "sessionId": "payload.session_id", "ts": "receivedAt",
+    "agentTimestamp": "payload.timestamp", "workspace": "payload.cwd"
+  },
+  "captures": [
+    { "fixture": "sessionStart-1.json", "kind": "session.started", "fields": { "model": "payload.model", "origin": "payload.source" }, "note": "workspaceId comes from app project context, not from the redacted cwd marker." },
+    { "fixture": "sessionStart-2.json", "kind": "session.started", "fields": { "model": "payload.model", "origin": "payload.source" }, "note": "A real session-start event was observed." },
+    { "fixture": "userPromptSubmitted-1.json", "kind": "prompt.submitted", "fields": { "text": "payload.prompt" }, "note": "Preserve prompt text as text, never HTML." },
+    { "fixture": "preToolUse-1.json", "kind": "edit.pending", "fields": { "tool": "payload.tool_name", "toolCallId": "payload.tool_use_id", "file": "payload.tool_input.filePath", "content": "payload.tool_input.content" }, "note": "create_file is pending intent, not proof that a file exists." },
+    { "fixture": "preToolUse-2.json", "kind": "edit.pending", "fields": { "tool": "payload.tool_name", "toolCallId": "payload.tool_use_id", "patch": "payload.tool_input.input" }, "note": "Step 4 extracts patch operation headers, normalizes separators, and resolves paths against the known workspace. The captured workspace marker is not a real root." },
+    { "fixture": "preToolUse-3.json", "kind": null, "fields": { "tool": "payload.tool_name", "toolCallId": "payload.tool_use_id", "files": "payload.tool_input.filePaths" }, "note": "get_errors is read-only. It does not emit edit.pending or add a change." },
+    { "fixture": "postToolUse-1.json", "kind": "edit.applied", "fields": { "tool": "payload.tool_name", "toolCallId": "payload.tool_use_id", "patch": "payload.tool_input.input", "response": "payload.tool_response" }, "note": "The empty response leaves outcome unknown. Confirm on disk before claiming a semantic change." },
+    { "fixture": "postToolUse-2.json", "kind": null, "fields": { "tool": "payload.tool_name", "toolCallId": "payload.tool_use_id", "files": "payload.tool_input.filePaths", "response": "payload.tool_response" }, "note": "get_errors is read-only, even when its response is empty." },
+    { "fixture": "agentStop-1.json", "kind": "turn.ended", "fields": { "stopHookActive": "payload.stop_hook_active" }, "note": "Stop is not SessionEnd." },
+    { "fixture": "agentStop-2.json", "kind": "turn.ended", "fields": { "stopHookActive": "payload.stop_hook_active" }, "note": "Keep the session open for later turns." }
+  ]
+}

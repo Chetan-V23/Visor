@@ -1,0 +1,20 @@
+[
+  {
+    "v": 1,
+    "id": "4508c17a-baaa-4a0c-9add-7384850f24fd",
+    "sessionId": "27f8abc8-61fa-4c6e-a74a-749faa1e02a4",
+    "seq": 0,
+    "ts": 1794470443104,
+    "source": "copilot",
+    "agentTimestamp": "2026-11-12T08:00:42.200Z",
+    "kind": "edit.pending",
+    "payload": {
+      "tool": "create_file",
+      "toolCallId": "toolu_01SJEpbWGGSrBDMgZzzzKxq8__vscode-1794470419590",
+      "files": [
+        "image_compare.py"
+      ],
+      "intent": "create"
+    }
+  }
+]

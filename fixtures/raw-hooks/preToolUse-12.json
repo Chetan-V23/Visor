@@ -1,0 +1,21 @@
+{
+  "id": "31cf3bed-f163-4b8b-ab07-d0f6fec55fc7",
+  "source": "copilot",
+  "event": "preToolUse",
+  "receivedAt": 1794479637389,
+  "payload": {
+    "timestamp": "2026-11-12T10:33:56.539Z",
+    "hook_event_name": "PreToolUse",
+    "session_id": "516285aa-3397-4f68-8faf-f8c6e674e121",
+    "transcript_path": "<path>",
+    "tool_name": "run_in_terminal",
+    "tool_input": {
+      "command": "& '<path>' -m pip show nibabel numpy matplotlib",
+      "explanation": "Inspect package installation locations in the exact interpreter used for validation.",
+      "goal": "Diagnose dependency mismatch",
+      "mode": "sync"
+    },
+    "tool_use_id": "call_24Vcb0eIwoO0rnqYRxySRD2k__vscode-1794479217179",
+    "cwd": "<workspace>"
+  }
+}

@@ -9,7 +9,13 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@dagrejs/dagre": "^1.1.5",
+    "ignore": "^7.0.5",
     "@visor/bridge": "workspace:*",
+    "@visor/core": "workspace:*",
+    "@visor/store": "workspace:*",
+    "better-sqlite3": "12.11.1",
+    "@visor/protocol": "workspace:*",
     "@fontsource/dm-sans": "^5.2.8",
     "@fontsource/space-grotesk": "^5.2.10",
     "@fontsource/jetbrains-mono": "^5.2.8",
@@ -18,7 +24,9 @@
     "framer-motion": "^12.23.24",
     "lucide-react": "^0.552.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "web-tree-sitter": "0.20.8",
+    "tree-sitter-wasms": "^0.1.13"
   },
   "devDependencies": {
     "@types/react": "^19.2.2",

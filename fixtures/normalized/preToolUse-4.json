@@ -1,0 +1,20 @@
+[
+  {
+    "v": 1,
+    "id": "1857c054-479c-4f5f-b5a4-cf93f868a670",
+    "sessionId": "516285aa-3397-4f68-8faf-f8c6e674e121",
+    "seq": 0,
+    "ts": 1794479327664,
+    "source": "copilot",
+    "agentTimestamp": "2026-11-12T10:28:46.925Z",
+    "kind": "edit.pending",
+    "payload": {
+      "tool": "apply_patch",
+      "toolCallId": "call_c5orby3Bq8DUN0fkn61Z8yzv__vscode-1794479217171",
+      "files": [
+        "image_compare.py"
+      ],
+      "intent": "edit"
+    }
+  }
+]

@@ -1,3 +1,5 @@
+import type { Relation } from '@visor/protocol'
+
 export type TextChange = 'unchanged' | 'added' | 'deleted'
 
 export interface DiagramMethod {
@@ -6,6 +8,8 @@ export interface DiagramMethod {
   signature: string
   docstring: string
   change: TextChange
+  modified?: boolean
+  changeId?: string
 }
 
 export interface DiagramClass {
@@ -13,6 +17,7 @@ export interface DiagramClass {
   name: string
   file: string
   methods: DiagramMethod[]
+  change?: TextChange | 'modified'
 }
 
 export interface DiagramEdge {
@@ -20,6 +25,10 @@ export interface DiagramEdge {
   from: string
   to: string
   label: string
+  kind?: Relation['kind']
+  certainty?: Relation['certainty']
+  evidence?: Relation['evidence']
+  change?: TextChange
 }
 
 export interface DiagramChange {

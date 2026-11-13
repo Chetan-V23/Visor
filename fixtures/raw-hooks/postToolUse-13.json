@@ -1,0 +1,21 @@
+{
+  "id": "30d07837-43b8-4ab8-b91a-14ffde64718b",
+  "source": "copilot",
+  "event": "postToolUse",
+  "receivedAt": 1794479667984,
+  "payload": {
+    "timestamp": "2026-11-12T10:34:27.095Z",
+    "hook_event_name": "PostToolUse",
+    "session_id": "516285aa-3397-4f68-8faf-f8c6e674e121",
+    "transcript_path": "<path>",
+    "tool_name": "read_file",
+    "tool_input": {
+      "filePath": "<path>",
+      "startLine": 1,
+      "endLine": 25
+    },
+    "tool_response": "",
+    "tool_use_id": "call_SzmAIg69sdh4IwVZShFv9eWe__vscode-1794479217181",
+    "cwd": "<workspace>"
+  }
+}

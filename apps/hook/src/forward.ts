@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import {
-  appConfigSchema, MAX_HOOK_BYTES, rawHookSchema, rawPayloadSchema,
+  appConfigSchema, isFileChangeHook, MAX_HOOK_BYTES, rawHookSchema, rawPayloadSchema,
   type RawHook, type Runtime
 } from '@visor/bridge'
 import { dataFolder, readRuntime } from '@visor/bridge/node'
@@ -95,6 +95,7 @@ export async function forwardRaw({ event, input, folder = dataFolder() }: {
 
   let runtime = await healthyRuntime(folder)
   if (!runtime) {
+    if (!isFileChangeHook(parsed.data)) return
     if (!await launchApp(folder)) return
     const deadline = Date.now() + 3000
     while (Date.now() < deadline) {

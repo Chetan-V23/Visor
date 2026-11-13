@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 
 export default defineConfig({
-  main: { plugins: [externalizeDepsPlugin({ exclude: ['@visor/bridge'] })] },
+  main: { plugins: [externalizeDepsPlugin({ exclude: ['@visor/bridge', '@visor/core', '@visor/protocol', '@visor/store'] })] },
   preload: {},
   renderer: {
     root: resolve(__dirname, 'src/renderer'),

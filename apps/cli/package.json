@@ -1,0 +1,15 @@
+{
+  "name": "cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@visor/core": "workspace:*",
+    "@visor/bridge": "workspace:*",
+    "@visor/store": "workspace:*",
+    "@visor/protocol": "workspace:*",
+    "web-tree-sitter": "0.20.8",
+    "tree-sitter-wasms": "^0.1.13",
+    "zod": "^4.1.12"
+  }
+}

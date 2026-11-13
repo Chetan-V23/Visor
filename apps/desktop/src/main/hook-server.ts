@@ -1,6 +1,7 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { MAX_HOOK_BYTES, rawHookSchema, type RawHook, type Runtime } from '@visor/bridge'
+import { semanticDocumentSchema, semanticQuerySchema, type SemanticDocument, type SourceRange } from '@visor/protocol'
 
 function reply(response: ServerResponse, status: number, body: object): void {
   response.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' })
@@ -25,8 +26,10 @@ async function readBody(request: IncomingMessage): Promise<string | null> {
   return Buffer.concat(chunks).toString('utf8')
 }
 
-export async function startHookServer({ onRaw }: {
+export async function startHookServer({ onRaw, onSemantic, onQueries }: {
   onRaw: (raw: RawHook) => void | Promise<void>
+  onSemantic?: (document: SemanticDocument) => boolean | Promise<boolean>
+  onQueries?: (document: Pick<SemanticDocument, 'v' | 'workspaceRoot' | 'file' | 'hash'>) => SourceRange['start'][] | null
 }): Promise<{ runtime: Runtime; close: () => Promise<void> }> {
   const token = randomBytes(32).toString('hex')
   const server = createServer((request, response) => {
@@ -43,7 +46,7 @@ export async function startHookServer({ onRaw }: {
         reply(response, 200, { ok: true, pid: process.pid })
         return
       }
-      if (request.method !== 'POST' || request.url !== '/hooks/raw') {
+      if (request.method !== 'POST' || !['/hooks/raw', '/semantic', '/semantic/queries'].includes(request.url ?? '')) {
         reply(response, 404, { error: 'Not found.' })
         return
       }
@@ -59,6 +62,21 @@ export async function startHookServer({ onRaw }: {
       let input: unknown
       try { input = JSON.parse(body) } catch {
         reply(response, 400, { error: 'Invalid JSON.' })
+        return
+      }
+      if (request.url === '/semantic/queries') {
+        const query = semanticQuerySchema.safeParse(input)
+        if (!query.success) { reply(response, 400, { error: 'Invalid source version.' }); return }
+        const positions = onQueries?.(query.data)
+        if (!positions) { reply(response, 409, { error: 'Source version has not been observed.' }); return }
+        reply(response, 200, { positions })
+        return
+      }
+      if (request.url === '/semantic') {
+        const semantic = semanticDocumentSchema.safeParse(input)
+        if (!semantic.success) { reply(response, 400, { error: 'Invalid semantic document.' }); return }
+        if (!onSemantic || !await onSemantic(semantic.data)) { reply(response, 409, { error: 'Source versions have not been observed.' }); return }
+        reply(response, 202, { accepted: true })
         return
       }
       const parsed = rawHookSchema.safeParse(input)

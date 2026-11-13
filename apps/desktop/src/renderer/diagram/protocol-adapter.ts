@@ -1,0 +1,94 @@
+import type { Change, CodeModel, MethodSymbol, Relation } from '@visor/protocol'
+import type { DiagramChange, DiagramEdge, DiagramView } from './types'
+
+function relationId(relation: Relation): string {
+  return `${relation.kind}:${relation.from}->${relation.to}:${relation.label ?? ''}`
+}
+
+export function toDiagramView(model: CodeModel, change: Change | null): Pick<DiagramView, 'classes' | 'edges'> {
+  const classes = new Map(model.classes.map((symbol) => [symbol.id, structuredClone(symbol)]))
+  const addedClasses = new Set<string>()
+  const removedClasses = new Set<string>()
+  const modifiedClasses = new Set<string>()
+  const addedMembers = new Set<string>()
+  const modifiedMembers = new Set<string>()
+  const removedMembers = new Map<string, MethodSymbol[]>()
+  const relations = new Map<string, { relation: Relation; change: DiagramEdge['change'] }>(model.relations.map((relation) => [relationId(relation), { relation, change: 'unchanged' }]))
+  for (const delta of change?.delta ?? []) {
+    switch (delta.op) {
+      case 'node.add':
+        addedClasses.add(delta.node.id)
+        if (!classes.has(delta.node.id)) classes.set(delta.node.id, structuredClone(delta.node))
+        break
+      case 'node.remove':
+        removedClasses.add(delta.node.id)
+        classes.set(delta.node.id, structuredClone(delta.node))
+        break
+      case 'node.rename':
+        modifiedClasses.add(delta.to)
+        break
+      case 'member.add':
+        addedMembers.add(delta.member.id)
+        modifiedClasses.add(delta.classId)
+        break
+      case 'member.remove':
+        if (delta.member.kind === 'method') {
+          const members = removedMembers.get(delta.classId) ?? []
+          members.push(structuredClone(delta.member))
+          removedMembers.set(delta.classId, members)
+        }
+        modifiedClasses.add(delta.classId)
+        break
+      case 'member.change':
+        modifiedMembers.add(delta.after.id)
+        modifiedClasses.add(delta.classId)
+        break
+      case 'edge.add':
+      case 'edge.remove':
+        relations.set(relationId(delta.relation), { relation: delta.relation, change: delta.op === 'edge.add' ? 'added' : 'deleted' })
+        break
+      case 'code.hunks':
+        if (delta.symbolId && classes.has(delta.symbolId)) modifiedClasses.add(delta.symbolId)
+        break
+      default: {
+        const unreachable: never = delta
+        throw new Error(`Unsupported graph operation: ${String(unreachable)}`)
+      }
+    }
+  }
+  const owners = new Map<string, string>()
+  for (const symbol of classes.values()) {
+    owners.set(symbol.id, symbol.id)
+    for (const member of [...symbol.methods, ...symbol.fields]) owners.set(member.id, symbol.id)
+  }
+  return {
+    classes: [...classes.values()].map((symbol) => {
+      const removed = removedMembers.get(symbol.id) ?? []
+      const removedIds = new Set(removed.map((method) => method.id))
+      return {
+        id: symbol.id, name: symbol.name, file: symbol.file,
+        change: removedClasses.has(symbol.id) ? 'deleted' : addedClasses.has(symbol.id) ? 'added' : modifiedClasses.has(symbol.id) ? 'modified' : 'unchanged',
+        methods: [...symbol.methods.filter((method) => !removedIds.has(method.id)), ...removed].map((method) => ({
+          id: method.id, name: method.displayName ?? method.name, signature: method.signature, docstring: method.docstring,
+          change: removedClasses.has(symbol.id) || removedIds.has(method.id) ? 'deleted' : addedClasses.has(symbol.id) || addedMembers.has(method.id) ? 'added' : 'unchanged',
+          modified: modifiedMembers.has(method.id), changeId: change?.id
+        }))
+      }
+    }),
+    edges: [...relations.entries()].flatMap(([id, entry]) => {
+      const from = owners.get(entry.relation.from)
+      const to = owners.get(entry.relation.to)
+      return from && to ? [{ id, from, to, label: entry.relation.label ?? entry.relation.kind, kind: entry.relation.kind, certainty: entry.relation.certainty, evidence: entry.relation.evidence, change: entry.change }] : []
+    })
+  }
+}
+
+export function toDiagramChange(change: Change, model: CodeModel): DiagramChange {
+  const delta = change.delta.find((entry) => 'classId' in entry || 'node' in entry)
+  const classId = delta && 'classId' in delta ? delta.classId : delta && 'node' in delta ? delta.node.id : model.classes.find((symbol) => change.files.some((file) => file.path === symbol.file))?.id ?? ''
+  return {
+    id: change.id, number: change.seq, summary: change.summary, time: new Date(change.ts).toISOString().slice(11, 19),
+    files: change.files.length, added: change.files.reduce((total, file) => total + file.added, 0),
+    deleted: change.files.reduce((total, file) => total + file.deleted, 0), classId
+  }
+}

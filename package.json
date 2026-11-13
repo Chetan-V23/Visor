@@ -5,6 +5,11 @@
   "packageManager": "pnpm@10.20.0",
   "scripts": {
     "dev": "pnpm --filter desktop dev",
+    "visor": "tsx apps/cli/src/index.ts",
+    "fixtures:update": "tsx apps/cli/src/update-goldens.ts",
+    "fixtures:history": "tsx apps/cli/src/create-history-fixture.ts",
+    "postinstall": "node apps/desktop/scripts/rebuild-sqlite.cjs",
+    "rebuild:sqlite": "node apps/desktop/scripts/rebuild-sqlite.cjs",
     "build": "pnpm --filter hook build && pnpm --filter desktop build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test:unit": "pnpm --filter hook build && vitest run",
@@ -15,10 +20,13 @@
   "devDependencies": {
     "@playwright/test": "^1.56.1",
     "@types/node": "^22.19.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "@electron/rebuild": "^4.2.1",
     "typescript": "^5.9.3",
+    "tsx": "^4.20.6",
     "vitest": "^3.2.4"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["electron", "esbuild"]
+    "onlyBuiltDependencies": ["electron", "esbuild", "better-sqlite3"]
   }
 }

@@ -1,0 +1,520 @@
+[
+  {
+    "v": 1,
+    "id": "1857c054-479c-4f5f-b5a4-cf93f868a670",
+    "sessionId": "516285aa-3397-4f68-8faf-f8c6e674e121",
+    "seq": 0,
+    "ts": 1794479327664,
+    "cause": {
+      "kind": "baseline",
+      "eventId": "1857c054-479c-4f5f-b5a4-cf93f868a670",
+      "observedAt": "before-first-edit"
+    },
+    "summary": "Baseline",
+    "files": [
+      {
+        "path": "image_compare.py",
+        "beforeHash": null,
+        "afterHash": "8ee5af8dc10042ca6832365e776b69f337c4ecedc4a1c738c0b448bf7433a603",
+        "added": 0,
+        "deleted": 0
+      }
+    ],
+    "delta": []
+  },
+  {
+    "v": 1,
+    "id": "339cdbac-705c-42e2-b60f-8b6b1319d042",
+    "sessionId": "516285aa-3397-4f68-8faf-f8c6e674e121",
+    "seq": 1,
+    "ts": 1794479331718,
+    "cause": {
+      "kind": "tool",
+      "eventId": "339cdbac-705c-42e2-b60f-8b6b1319d042",
+      "tool": "apply_patch",
+      "toolCallId": "call_c5orby3Bq8DUN0fkn61Z8yzv__vscode-1794479217171"
+    },
+    "summary": "Added class NiftiImage",
+    "files": [
+      {
+        "path": "image_compare.py",
+        "beforeHash": "8ee5af8dc10042ca6832365e776b69f337c4ecedc4a1c738c0b448bf7433a603",
+        "afterHash": "fd80ac3a127f8c6a6a7f37e65e20289202a4d64df282c63de48feda89bf8d746",
+        "added": 43,
+        "deleted": 0
+      }
+    ],
+    "delta": [
+      {
+        "v": 1,
+        "op": "node.add",
+        "node": {
+          "id": "py:image_compare.py::NiftiImage",
+          "name": "NiftiImage",
+          "file": "image_compare.py",
+          "range": {
+            "start": {
+              "line": 22,
+              "column": 0
+            },
+            "end": {
+              "line": 34,
+              "column": 30
+            }
+          },
+          "bases": [],
+          "methods": [
+            {
+              "kind": "method",
+              "id": "py:image_compare.py::NiftiImage.__init__",
+              "name": "__init__",
+              "signature": "__init__(self, path: str | Path)",
+              "docstring": "",
+              "range": {
+                "start": {
+                  "line": 23,
+                  "column": 4
+                },
+                "end": {
+                  "line": 26,
+                  "column": 54
+                }
+              },
+              "bodyHash": "5c27842096bdaeb93c8b3f2c7fe33a0cfd2375957c64cdd09d323965dab3fc82"
+            },
+            {
+              "kind": "method",
+              "id": "py:image_compare.py::NiftiImage.name",
+              "name": "name",
+              "signature": "name(self) -> str",
+              "docstring": "",
+              "range": {
+                "start": {
+                  "line": 29,
+                  "column": 4
+                },
+                "end": {
+                  "line": 30,
+                  "column": 29
+                }
+              },
+              "bodyHash": "253718ed05913115179e1b9e84f281ebea0a5d2dd61b10e1ef84c78703833566"
+            },
+            {
+              "kind": "method",
+              "id": "py:image_compare.py::NiftiImage.shape",
+              "name": "shape",
+              "signature": "shape(self) -> tuple[int, ...]",
+              "docstring": "",
+              "range": {
+                "start": {
+                  "line": 33,
+                  "column": 4
+                },
+                "end": {
+                  "line": 34,
+                  "column": 30
+                }
+              },
+              "bodyHash": "5458391b2b99469348a1f3daef3398d615ebda8514547f29ea3dedec81a3c0c0"
+            }
+          ],
+          "fields": [
+            {
+              "kind": "field",
+              "id": "py:image_compare.py::NiftiImage.path",
+              "name": "path",
+              "type": "Path",
+              "range": {
+                "start": {
+                  "line": 24,
+                  "column": 8
+                },
+                "end": {
+                  "line": 24,
+                  "column": 30
+                }
+              },
+              "initializerHash": "c81cddc9bfe8cede4dd7202e618f41412e660fc90eceeaa4b4c016c63696137a"
+            },
+            {
+              "kind": "field",
+              "id": "py:image_compare.py::NiftiImage.image",
+              "name": "image",
+              "type": null,
+              "range": {
+                "start": {
+                  "line": 25,
+                  "column": 8
+                },
+                "end": {
+                  "line": 25,
+                  "column": 40
+                }
+              },
+              "initializerHash": "7d8de49c0ed66c8866d66da4cede156d80358ab064983e0099ecf5e8789f4ede"
+            },
+            {
+              "kind": "field",
+              "id": "py:image_compare.py::NiftiImage.data",
+              "name": "data",
+              "type": "np.ndarray",
+              "range": {
+                "start": {
+                  "line": 26,
+                  "column": 8
+                },
+                "end": {
+                  "line": 26,
+                  "column": 54
+                }
+              },
+              "initializerHash": "5a68c1dfc356ced6bff7b81ee2be6d1339dad886840dfd8da6e89496ca0814d6"
+            }
+          ]
+        }
+      },
+      {
+        "v": 1,
+        "op": "member.add",
+        "classId": "py:image_compare.py::Main",
+        "member": {
+          "kind": "method",
+          "id": "py:image_compare.py::Main.compare_nifti",
+          "name": "compare_nifti",
+          "signature": "compare_nifti(\r\n        self,\r\n        image_a_path: str | Path,\r\n        image_b_path: str | Path,\r\n        slice_index: int | None = None,\r\n    ) -> None",
+          "docstring": "",
+          "range": {
+            "start": {
+              "line": 54,
+              "column": 4
+            },
+            "end": {
+              "line": 79,
+              "column": 18
+            }
+          },
+          "bodyHash": "b59885b03924c9f1d9610a8d3e559048de4447b7dd11e7f93f1a331632cfa854"
+        }
+      },
+      {
+        "v": 1,
+        "op": "edge.add",
+        "relation": {
+          "from": "py:image_compare.py::Main",
+          "to": "py:image_compare.py::NiftiImage",
+          "kind": "depends",
+          "label": "compare_nifti",
+          "certainty": "inferred",
+          "evidence": [
+            {
+              "file": "image_compare.py",
+              "range": { "start": { "line": 60, "column": 18 }, "end": { "line": 60, "column": 42 } },
+              "reason": "Constructor used by this method."
+            },
+            {
+              "file": "image_compare.py",
+              "range": { "start": { "line": 60, "column": 44 }, "end": { "line": 60, "column": 68 } },
+              "reason": "Constructor used by this method."
+            }
+          ]
+        }
+      },
+      {
+        "v": 1,
+        "op": "code.hunks",
+        "file": "image_compare.py",
+        "hunks": [
+          {
+            "oldStart": 1,
+            "oldLines": 7,
+            "newStart": 1,
+            "newLines": 8,
+            "lines": [
+              {
+                "kind": "context",
+                "text": "from pathlib import Path\r"
+              },
+              {
+                "kind": "context",
+                "text": "\r"
+              },
+              {
+                "kind": "context",
+                "text": "import matplotlib.pyplot as plt\r"
+              },
+              {
+                "kind": "added",
+                "text": "import nibabel as nib\r"
+              },
+              {
+                "kind": "context",
+                "text": "import numpy as np\r"
+              },
+              {
+                "kind": "context",
+                "text": "\r"
+              },
+              {
+                "kind": "context",
+                "text": "\r"
+              },
+              {
+                "kind": "context",
+                "text": "class NpyImage:\r"
+              }
+            ]
+          },
+          {
+            "oldStart": 17,
+            "oldLines": 8,
+            "newStart": 18,
+            "newLines": 23,
+            "lines": [
+              {
+                "kind": "context",
+                "text": "    def shape(self) -> tuple[int, ...]:\r"
+              },
+              {
+                "kind": "context",
+                "text": "        return self.data.shape\r"
+              },
+              {
+                "kind": "context",
+                "text": "\r"
+              },
+              {
+                "kind": "context",
+                "text": "\r"
+              },
+              {
+                "kind": "added",
+                "text": "class NiftiImage:\r"
+              },
+              {
+                "kind": "added",
+                "text": "    def __init__(self, path: str | Path):\r"
+              },
+              {
+                "kind": "added",
+                "text": "        self.path = Path(path)\r"
+              },
+              {
+                "kind": "added",
+                "text": "        self.image = nib.load(self.path)\r"
+              },
+              {
+                "kind": "added",
+                "text": "        self.data: np.ndarray = self.image.get_fdata()\r"
+              },
+              {
+                "kind": "added",
+                "text": "\r"
+              },
+              {
+                "kind": "added",
+                "text": "    @property\r"
+              },
+              {
+                "kind": "added",
+                "text": "    def name(self) -> str:\r"
+              },
+              {
+                "kind": "added",
+                "text": "        return self.path.name\r"
+              },
+              {
+                "kind": "added",
+                "text": "\r"
+              },
+              {
+                "kind": "added",
+                "text": "    @property\r"
+              },
+              {
+                "kind": "added",
+                "text": "    def shape(self) -> tuple[int, ...]:\r"
+              },
+              {
+                "kind": "added",
+                "text": "        return self.data.shape\r"
+              },
+              {
+                "kind": "added",
+                "text": "\r"
+              },
+              {
+                "kind": "added",
+                "text": "\r"
+              },
+              {
+                "kind": "context",
+                "text": "class Main:\r"
+              },
+              {
+                "kind": "context",
+                "text": "    IMAGE_A_PATH = Path(r\"<path>\")\r"
+              },
+              {
+                "kind": "context",
+                "text": "    IMAGE_B_PATH = Path(r\"<path>\")\r"
+              },
+              {
+                "kind": "context",
+                "text": "\r"
+              }
+            ]
+          },
+          {
+            "oldStart": 34,
+            "oldLines": 8,
+            "newStart": 50,
+            "newLines": 35,
+            "lines": [
+              {
+                "kind": "context",
+                "text": "            ax.axis(\"off\")\r"
+              },
+              {
+                "kind": "context",
+                "text": "        plt.tight_layout()\r"
+              },
+              {
+                "kind": "context",
+                "text": "        plt.show()\r"
+              },
+              {
+                "kind": "context",
+                "text": "\r"
+              },
+              {
+                "kind": "added",
+                "text": "    def compare_nifti(\r"
+              },
+              {
+                "kind": "added",
+                "text": "        self,\r"
+              },
+              {
+                "kind": "added",
+                "text": "        image_a_path: str | Path,\r"
+              },
+              {
+                "kind": "added",
+                "text": "        image_b_path: str | Path,\r"
+              },
+              {
+                "kind": "added",
+                "text": "        slice_index: int | None = None,\r"
+              },
+              {
+                "kind": "added",
+                "text": "    ) -> None:\r"
+              },
+              {
+                "kind": "added",
+                "text": "        images = (NiftiImage(image_a_path), NiftiImage(image_b_path))\r"
+              },
+              {
+                "kind": "added",
+                "text": "        slices = []\r"
+              },
+              {
+                "kind": "added",
+                "text": "        for image in images:\r"
+              },
+              {
+                "kind": "added",
+                "text": "            if image.data.ndim == 2:\r"
+              },
+              {
+                "kind": "added",
+                "text": "                slices.append(image.data)\r"
+              },
+              {
+                "kind": "added",
+                "text": "            elif image.data.ndim == 3:\r"
+              },
+              {
+                "kind": "added",
+                "text": "                index = image.shape[2] // 2 if slice_index is None else slice_index\r"
+              },
+              {
+                "kind": "added",
+                "text": "                if not 0 <= index < image.shape[2]:\r"
+              },
+              {
+                "kind": "added",
+                "text": "                    raise ValueError(f\"Slice index {index} is out of bounds for {image.name}\")\r"
+              },
+              {
+                "kind": "added",
+                "text": "                slices.append(image.data[:, :, index])\r"
+              },
+              {
+                "kind": "added",
+                "text": "            else:\r"
+              },
+              {
+                "kind": "added",
+                "text": "                raise ValueError(f\"Expected a 2D or 3D NIfTI image: {image.name} {image.shape}\")\r"
+              },
+              {
+                "kind": "added",
+                "text": "\r"
+              },
+              {
+                "kind": "added",
+                "text": "        fig, axes = plt.subplots(1, 2, figsize=(12, 6))\r"
+              },
+              {
+                "kind": "added",
+                "text": "        for ax, image, data in zip(axes, images, slices):\r"
+              },
+              {
+                "kind": "added",
+                "text": "            ax.imshow(data, cmap=\"gray\")\r"
+              },
+              {
+                "kind": "added",
+                "text": "            ax.set_title(f\"{image.name} {image.shape}\")\r"
+              },
+              {
+                "kind": "added",
+                "text": "            ax.axis(\"off\")\r"
+              },
+              {
+                "kind": "added",
+                "text": "        plt.tight_layout()\r"
+              },
+              {
+                "kind": "added",
+                "text": "        plt.show()\r"
+              },
+              {
+                "kind": "added",
+                "text": "\r"
+              },
+              {
+                "kind": "context",
+                "text": "    def run(self) -> None:\r"
+              },
+              {
+                "kind": "context",
+                "text": "        self.compare()\r"
+              },
+              {
+                "kind": "context",
+                "text": "\r"
+              },
+              {
+                "kind": "context",
+                "text": "\r"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]

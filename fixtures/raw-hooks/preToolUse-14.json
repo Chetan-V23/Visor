@@ -1,0 +1,20 @@
+{
+  "id": "57726eb9-affe-41ec-9b02-e73edb1aa657",
+  "source": "copilot",
+  "event": "preToolUse",
+  "receivedAt": 1794479666059,
+  "payload": {
+    "timestamp": "2026-11-12T10:34:25.213Z",
+    "hook_event_name": "PreToolUse",
+    "session_id": "516285aa-3397-4f68-8faf-f8c6e674e121",
+    "transcript_path": "<path>",
+    "tool_name": "read_file",
+    "tool_input": {
+      "filePath": "<path>",
+      "startLine": 1,
+      "endLine": 25
+    },
+    "tool_use_id": "call_SzmAIg69sdh4IwVZShFv9eWe__vscode-1794479217181",
+    "cwd": "<workspace>"
+  }
+}

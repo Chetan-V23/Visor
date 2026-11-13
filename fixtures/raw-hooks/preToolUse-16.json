@@ -1,0 +1,21 @@
+{
+  "id": "95323955-fab0-4ca5-92ab-d7fa85ae11d3",
+  "source": "copilot",
+  "event": "preToolUse",
+  "receivedAt": 1794479692929,
+  "payload": {
+    "timestamp": "2026-11-12T10:34:51.984Z",
+    "hook_event_name": "PreToolUse",
+    "session_id": "516285aa-3397-4f68-8faf-f8c6e674e121",
+    "transcript_path": "<path>",
+    "tool_name": "run_in_terminal",
+    "tool_input": {
+      "command": "& '<path>' -m pip install nibabel",
+      "explanation": "Install nibabel in the exact interpreter after the package tool failed to make it importable.",
+      "goal": "Resolve missing NIfTI dependency",
+      "mode": "sync"
+    },
+    "tool_use_id": "call_j6cJDYDQkY8DP35SDbSUe5eh__vscode-1794479217183",
+    "cwd": "<workspace>"
+  }
+}

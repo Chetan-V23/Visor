@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { RawHook } from '@visor/bridge'
+import { CopilotAdapter } from '@visor/core'
 import { readRuntime, removeOwnedRuntime, writeJsonAtomic } from '@visor/bridge/node'
 import { HookMonitor } from './hook-monitor'
 import { sanitizeRaw } from './raw-capture'
@@ -22,13 +23,31 @@ function raw(event = 'sessionStart'): RawHook {
 }
 
 describe('raw event monitor and capture', () => {
+  it('retains schema-valid normalized events once, with per-session sequence and an error diagnostic', () => {
+    const monitor = new HookMonitor({ port: 1234, dataFolder: 'test', captureFolder: 'test', onSnapshot: () => {}, onFileChange: () => {} })
+    const events = new CopilotAdapter({ workspaceRoot: 'D:\\private\\project', workspaceId: 'project', seq: 0 }).toEvents(raw())
+    monitor.recordNormalization(events)
+    monitor.recordNormalization(events)
+    expect(monitor.snapshot().normalizedEvents).toEqual([])
+    const snapshot = monitor.setDebugEnabled(true)
+    expect(snapshot.normalizedEvents).toEqual(events)
+    expect(snapshot.normalizedEvents?.[0]?.seq).toBe(0)
+    monitor.recordNormalization([], 'Invalid hook fields.')
+    expect(monitor.snapshot().normalizationError).toBe('Invalid hook fields.')
+  })
   it('updates session identity, focuses once, hides events by default, and ignores duplicate IDs', () => {
     let focused = 0
-    const monitor = new HookMonitor({ port: 1234, dataFolder: 'test', captureFolder: null, onSnapshot: () => {}, onSessionStart: () => { focused++ } })
+    const monitor = new HookMonitor({ port: 1234, dataFolder: 'test', captureFolder: null, onSnapshot: () => {}, onFileChange: () => { focused++ } })
     const event = raw()
     monitor.ingest(event)
     monitor.ingest(event)
     expect(monitor.snapshot()).toMatchObject({ sessionId: 'live-session', events: [], debugEnabled: false })
+    expect(focused).toBe(0)
+    monitor.ingest({ ...raw('preToolUse'), payload: { tool_name: 'read_file' } })
+    expect(focused).toBe(0)
+    const edit = { ...raw('PreToolUse'), payload: { tool_name: 'create_file' } }
+    monitor.ingest(edit)
+    monitor.ingest(edit)
     expect(focused).toBe(1)
     monitor.ingest({ ...raw('PostToolUse'), payload: { session_id: 'compatible-session' } })
     expect(monitor.snapshot().sessionId).toBe('compatible-session')
@@ -36,7 +55,7 @@ describe('raw event monitor and capture', () => {
 
   it('captures only after opt-in, in arrival order, without replacing earlier fixtures', async () => {
     const captureFolder = await folder()
-    const monitor = new HookMonitor({ port: 1234, dataFolder: 'test', captureFolder, onSnapshot: () => {}, onSessionStart: () => {} })
+    const monitor = new HookMonitor({ port: 1234, dataFolder: 'test', captureFolder, onSnapshot: () => {}, onFileChange: () => {} })
     monitor.ingest(raw())
     await monitor.flush()
     expect(await readdir(captureFolder)).toEqual([])
@@ -66,7 +85,7 @@ describe('raw event monitor and capture', () => {
   })
 
   it('cannot enable dev capture in a packaged app', () => {
-    const monitor = new HookMonitor({ port: 1234, dataFolder: 'test', captureFolder: null, onSnapshot: () => {}, onSessionStart: () => {} })
+    const monitor = new HookMonitor({ port: 1234, dataFolder: 'test', captureFolder: null, onSnapshot: () => {}, onFileChange: () => {} })
     expect(monitor.setDebugEnabled(true).debugEnabled).toBe(false)
   })
 
