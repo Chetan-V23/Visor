@@ -1,0 +1,14 @@
+{
+  "id": "a06a96bb-e31b-4824-93cf-4f0ab1710546",
+  "source": "copilot",
+  "event": "userPromptSubmitted",
+  "receivedAt": 1794824414589,
+  "payload": {
+    "timestamp": "2026-11-16T10:20:14.045Z",
+    "hook_event_name": "UserPromptSubmit",
+    "session_id": "4abbfff5-464c-4da6-ac24-5e481f6737f5",
+    "transcript_path": "<path>",
+    "prompt": "remove the dicom class entirely from this project",
+    "cwd": "<workspace>"
+  }
+}

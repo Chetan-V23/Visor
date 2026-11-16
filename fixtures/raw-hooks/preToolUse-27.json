@@ -1,0 +1,20 @@
+{
+  "id": "ca2e75b9-02e0-4d55-b55d-0d904f3a0d60",
+  "source": "copilot",
+  "event": "preToolUse",
+  "receivedAt": 1794824420222,
+  "payload": {
+    "timestamp": "2026-11-16T10:20:19.683Z",
+    "hook_event_name": "PreToolUse",
+    "session_id": "4abbfff5-464c-4da6-ac24-5e481f6737f5",
+    "transcript_path": "<path>",
+    "tool_name": "read_file",
+    "tool_input": {
+      "filePath": "README.md",
+      "startLine": 1,
+      "endLine": 220
+    },
+    "tool_use_id": "call_hYo4po04d0j8dQ7E32iYDGc5__vscode-1794824010202",
+    "cwd": "<workspace>"
+  }
+}

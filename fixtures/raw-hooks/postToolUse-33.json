@@ -1,0 +1,22 @@
+{
+  "id": "2d9069d3-ef3d-42b0-b698-4265b0574ae8",
+  "source": "copilot",
+  "event": "postToolUse",
+  "receivedAt": 1794824509131,
+  "payload": {
+    "timestamp": "2026-11-16T10:21:48.613Z",
+    "hook_event_name": "PostToolUse",
+    "session_id": "4abbfff5-464c-4da6-ac24-5e481f6737f5",
+    "transcript_path": "<path>",
+    "tool_name": "run_in_terminal",
+    "tool_input": {
+      "command": "python -m py_compile image_compare.py",
+      "explanation": "Check the edited module for Python syntax errors without importing its dependencies.",
+      "goal": "Validate Python syntax",
+      "mode": "sync"
+    },
+    "tool_response": "The user chose to skip the tool call, they want to proceed without running it",
+    "tool_use_id": "call_qEdbwXdm5nz2aWKM9XK2Uzbl__vscode-1794824010209",
+    "cwd": "<workspace>"
+  }
+}

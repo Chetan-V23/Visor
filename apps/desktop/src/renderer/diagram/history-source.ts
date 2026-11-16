@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { historySnapshotSchema, type HistorySnapshot } from '@visor/bridge'
 import { changeSchema, sessionSummarySchema, type Change, type SessionSummary } from '@visor/protocol'
-import { toDiagramChange, toDiagramView } from './protocol-adapter'
+import { toDiagramChanges, toDiagramView } from './protocol-adapter'
 import type { DiagramSource, DiagramView } from './types'
 
 interface HistoryState {
@@ -64,7 +64,7 @@ export function useHistory(source: DiagramSource) {
   const view: DiagramView = preview ? sample : session ? {
     session: { name: session.title?.trim() || new Date(session.startedAt).toLocaleString(), project: session.project.name, branch: session.project.branch },
     ...(state.snapshot ? toDiagramView(state.snapshot.model, state.snapshot.change) : { classes: [], edges: [] }),
-    changes: state.changes.map((change) => toDiagramChange(change, state.snapshot?.model ?? { v: 1, classes: [], relations: [] }))
+    changes: toDiagramChanges(state.changes, state.snapshot?.model ?? { v: 1, classes: [], relations: [] })
   } : emptyView
 
   function selectChange(id: string): void {

@@ -1,6 +1,6 @@
 import fixture from '../fixtures/sample-diagram.json'
 import { diagramFixtureSchema } from '@visor/protocol'
-import { toDiagramChange, toDiagramView } from './protocol-adapter'
+import { toDiagramChanges, toDiagramView } from './protocol-adapter'
 import type { DiagramSource } from './types'
 
 const documents = diagramFixtureSchema.parse(fixture)
@@ -13,6 +13,6 @@ export const fixtureSource: DiagramSource = {
       name: documents.session.title ?? new Date(documents.session.startedAt).toISOString(),
       project: documents.session.project.name, branch: documents.session.project.branch
     },
-    changes: changes.map((change) => toDiagramChange(change, documents.model))
+    changes: toDiagramChanges(changes, documents.model)
   })
 }

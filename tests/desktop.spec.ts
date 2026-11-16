@@ -11,7 +11,7 @@ import { visorEventSchema } from '../packages/protocol/src/index'
 import { openDatabase, SqliteChangeStore } from '../packages/store/src/index'
 import { hookConfiguration } from '../apps/hook/src/install'
 import { seedHistory } from '../apps/cli/src/seed-history'
-import { contentHash } from '../packages/core/src/index'
+import { contentHash, createChange } from '../packages/core/src/index'
 
 let app: ElectronApplication
 let page: Page
@@ -162,6 +162,88 @@ test('persists captured NIfTI edits and a follow-up body edit across restarting 
   } finally { database.close() }
 })
 
+test('ignores documentation-only edits and hides legacy entries after restarting Electron', async () => {
+  const workspace = join(dataFolder, 'documentation-workspace')
+  await mkdir(workspace)
+  const before = 'class A:\n    def run(self):\n        return 1\n'
+  await writeFile(join(workspace, 'a.py'), before)
+  await writeFile(join(workspace, 'a.diagram.md'), 'run(self)\n')
+  await expect.poll(() => readRuntime(dataFolder)).not.toBeNull()
+  const runtime = await readRuntime(dataFolder)
+  if (!runtime) throw new Error('Missing runtime.')
+  const sessionId = 'documentation-history'
+  const raw = (event: string, payload: RawHook['payload'] = {}): RawHook => ({ id: randomUUID(), source: 'copilot', event, receivedAt: Date.now(), payload: { cwd: workspace, session_id: sessionId, ...payload } })
+  const send = async (event: RawHook) => {
+    const response = await fetch(`http://127.0.0.1:${runtime.port}/hooks/raw`, { method: 'POST', headers: { Authorization: `Bearer ${runtime.token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(event) })
+    expect(response.status).toBe(202)
+  }
+  const database = openDatabase(join(dataFolder, 'visor.db'))
+  const store = new SqliteChangeStore(database, [])
+  try {
+    await send(raw('sessionStart'))
+    await expect(page.getByTestId('change-entry')).toHaveCount(1)
+    await expect(page.locator('.change-count')).toHaveText('0')
+    await expect(page.locator('.session-meta')).toContainText('0 changes')
+    await expect(page.locator('.session-footer')).not.toContainText('Change 0')
+    expect(store.sourceAtChange(sessionId, 0, 'a.py')).toBe(before)
+    const codeInput = { tool_name: 'edit_file', tool_use_id: 'code-edit', tool_input: { filePath: 'a.py' } }
+    await send(raw('preToolUse', codeInput))
+    await expect.poll(() => store.pendingFiles(sessionId, 'code-edit').length).toBe(1)
+    await writeFile(join(workspace, 'a.py'), before.replace('return 1', 'return 2'))
+    await send(raw('postToolUse', codeInput))
+    await expect(page.getByTestId('change-entry')).toHaveCount(2)
+    await expect(page.locator('.change-count')).toHaveText('1')
+    await expect(page.locator('.session-meta')).toContainText('1 change')
+    await expect(page.getByTestId('change-entry').locator('.change-topline > span')).toHaveText(['Change 1', 'Baseline'])
+    await expect(page.getByRole('heading', { name: 'A', exact: true })).toBeVisible()
+    expect(store.sourceAtChange(sessionId, 1, 'a.py')).toBe(before.replace('return 1', 'return 2'))
+    await page.getByTestId('change-entry').last().click()
+    await expect(page.getByTestId('class-node')).toHaveAttribute('data-change', 'unchanged')
+    await expect(page.locator('.session-footer')).not.toContainText('Change 0')
+    await expect(page.locator('.session-footer')).toContainText('Baseline')
+    await page.getByTestId('change-entry').first().click()
+    await expect(page.getByRole('switch', { name: 'Live' })).toBeChecked()
+    await expect(page.locator('.session-footer')).toContainText('Change 1')
+    const code = store.latestChange(sessionId)
+    const session = store.listSessions()[0]
+    if (!code || !session) throw new Error('Missing code history.')
+    const documentationInput = { tool_name: 'apply_patch', tool_use_id: 'documentation-edit', tool_input: { input: '*** Begin Patch\n*** Update File: a.diagram.md\n@@\n-run(self)\n+run(self, value)\n*** End Patch' } }
+    await send(raw('preToolUse', documentationInput))
+    await expect.poll(() => store.pendingFiles(sessionId, 'documentation-edit').length).toBe(1)
+    await writeFile(join(workspace, 'a.diagram.md'), 'run(self, value)\n')
+    const post = raw('postToolUse', documentationInput)
+    await send(post)
+    await expect.poll(() => store.hasEvent(post.id)).toBe(true)
+    expect(store.listChanges(sessionId).map((change) => change.seq)).toEqual([1, 0])
+    await expect(page.getByTestId('change-entry')).toHaveCount(2)
+    await expect(page.getByTestId('change-entry').first()).toHaveAttribute('aria-current', 'step')
+    const event = visorEventSchema.parse({
+      v: 1, id: randomUUID(), sessionId, seq: store.nextEventSequence(sessionId), ts: Date.now(), source: 'copilot', kind: 'edit.applied',
+      payload: { tool: 'apply_patch', files: ['a.diagram.md'], intent: 'edit', outcome: 'succeeded' }
+    })
+    if (event.kind !== 'edit.applied') throw new Error('Expected legacy edit.')
+    const text = 'run(self, value, extra)\n'
+    const legacy = createChange(event, store.nextChangeSequence(sessionId), code.model, code.model, [{ path: 'a.diagram.md', before: 'run(self, value)\n', after: text }])
+    store.commit(event, { id: session.project.id, root: workspace, name: session.project.name, branch: '' }, {
+      change: { change: legacy, model: code.model }, snapshots: [{ path: 'a.diagram.md', text }]
+    })
+    expect(store.listChanges(sessionId).map((change) => change.seq)).toEqual([2, 1, 0])
+    await app.close()
+    app = await electron.launch({ args: [resolve('apps/desktop/out/main/index.js')], env: { ...process.env, VISOR_DATA_DIR: dataFolder, VISOR_CAPTURE_DIR: captureFolder } })
+    page = await app.firstWindow()
+    page.on('pageerror', (error) => rendererErrors.push(error.message))
+    await expect(page.getByTestId('change-entry')).toHaveCount(2)
+    await expect(page.locator('.change-count')).toHaveText('1')
+    await expect(page.getByTestId('change-entry').first()).toHaveAttribute('aria-current', 'step')
+    await expect(page.getByRole('heading', { name: 'A', exact: true })).toBeVisible()
+    await expect(page.getByText('No classes', { exact: true })).toHaveCount(0)
+    const visible = await page.evaluate((id) => window.visorHistory?.listChanges(id), sessionId)
+    expect(visible?.map((change) => change.id)).toEqual([code.change.id, store.listChanges(sessionId).at(-1)?.id])
+    expect(store.getChange(legacy.id)?.change).toEqual(legacy)
+    await page.screenshot({ path: 'test-results/visor-code-only-history.png', fullPage: true })
+  } finally { database.close() }
+})
+
 test('localizes a multi-file patch to touched classes in a larger workspace', async () => {
   const workspace = join(dataFolder, 'larger-workspace')
   await mkdir(join(workspace, 'Constants'), { recursive: true })
@@ -202,6 +284,58 @@ test('localizes a multi-file patch to touched classes in a larger workspace', as
   await page.getByRole('button', { name: 'Fit diagram', exact: true }).click()
   await expectDiagramFramed()
   await page.screenshot({ path: 'test-results/visor-localized-edit-mobile.png', fullPage: true })
+})
+
+test('includes all project classes mentioned in a replacement call without showing the whole workspace', async () => {
+  const workspace = join(dataFolder, 'mentioned-workspace')
+  await mkdir(workspace)
+  await Promise.all(Array.from({ length: 40 }, (_, index) => writeFile(join(workspace, `unrelated_${index}.py`), `class Unrelated${index}:\n    pass\n\nclass Other${index}:\n    pass\n`)))
+  const before = 'from pathlib import Path\nimport numpy as np\n\nclass JpegLossless:\n    def __init__(self, path):\n        self.path = path\n        self.data = None\n\nclass JpegImageFlipper:\n    def __init__(self, first: JpegLossless, second: JpegLossless):\n        self.first = first\n        self.second = second\n    def display(self):\n        pass\n\nclass Main:\n    IMAGE_A_PATH = "a.jpg"\n    def __init__(self):\n        self.jpeg_lossless_a = JpegLossless(self.IMAGE_A_PATH)\n        self.jpeg_lossless_b = JpegLossless("b.jpg")\n    def run(self):\n        JpegImageFlipper(self.jpeg_lossless_a, self.jpeg_lossless_b).display()\n\nclass UnmentionedHelper:\n    pass\n'
+  const replacements = [
+    { filePath: 'image_compare.py', oldString: 'class Main:\n    IMAGE_A_PATH', newString: 'class Flipper(JpegLossless):\n    def __init__(self, path: str | Path):\n        super().__init__(path)\n        self.flipped_data: np.ndarray = np.rot90(self.data, 3).copy()\n\n\nclass Main:\n    IMAGE_A_PATH' },
+    { filePath: 'image_compare.py', oldString: '        JpegImageFlipper(self.jpeg_lossless_a, self.jpeg_lossless_b).display()\n', newString: '        JpegImageFlipper(self.jpeg_lossless_a, self.jpeg_lossless_b).display()\n        self.flippers = (Flipper(self.jpeg_lossless_a.path), Flipper(self.jpeg_lossless_b.path))\n' }
+  ]
+  await writeFile(join(workspace, 'image_compare.py'), before)
+  await expect.poll(() => readRuntime(dataFolder)).not.toBeNull()
+  const runtime = await readRuntime(dataFolder)
+  if (!runtime) throw new Error('Missing runtime.')
+  const hook: RawHook = { id: randomUUID(), source: 'copilot', event: 'PreToolUse', receivedAt: Date.now(), payload: { cwd: workspace, session_id: 'mentioned-classes', tool_name: 'multi_replace_string_in_file', tool_use_id: 'flipper-edit', tool_input: { explanation: 'Add Flipper class and call it after JpegImageFlipper.', replacements } } }
+  const send = async (event: RawHook) => fetch(`http://127.0.0.1:${runtime.port}/hooks/raw`, { method: 'POST', headers: { Authorization: `Bearer ${runtime.token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(event) })
+  expect((await send(hook)).status).toBe(202)
+  await expect(page.getByTestId('class-node')).toHaveCount(84)
+  const after = replacements.reduce((source, replacement) => source.replace(replacement.oldString, replacement.newString), before)
+  expect(after).not.toBe(before)
+  await writeFile(join(workspace, 'image_compare.py'), after)
+  expect((await send({ ...hook, id: randomUUID(), event: 'PostToolUse' })).status).toBe(202)
+  await expect(page.getByTestId('change-entry')).toHaveCount(2)
+  await expect(page.getByTestId('class-node')).toHaveCount(4)
+  await expect(page.getByTestId('class-node').locator('h2')).toHaveText(['JpegLossless', 'JpegImageFlipper', 'Flipper', 'Main'])
+  const node = (name: string) => page.getByTestId('class-node').filter({ has: page.getByRole('heading', { name, exact: true }) })
+  await expect(node('JpegLossless')).toHaveAttribute('data-change', 'unchanged')
+  await expect(node('JpegImageFlipper')).toHaveAttribute('data-change', 'unchanged')
+  await expect(node('Flipper')).toHaveAttribute('data-change', 'added')
+  await expect(node('Main')).toHaveAttribute('data-change', 'modified')
+  const inheritance = page.locator('.react-flow__edge[data-id^="inherits:py:image_compare.py::Flipper->py:image_compare.py::JpegLossless:"]')
+  await expect(inheritance).toHaveCount(1)
+  expect(await inheritance.locator('.react-flow__edge-path').evaluate((path) => {
+    const id = path.getAttribute('marker-end')?.match(/^url\(['"]?#([^'")]+)['"]?\)$/)?.[1]
+    return id ? document.getElementById(id)?.tagName : null
+  })).toBe('marker')
+  await expect(page.getByRole('heading', { name: 'UnmentionedHelper', exact: true })).toHaveCount(0)
+  const stored = await page.evaluate(async () => {
+    const latest = (await window.visorHistory?.listChanges('mentioned-classes'))?.[0]
+    return latest ? window.visorHistory?.getChange(latest.id) : null
+  })
+  expect(stored?.model.classes).toHaveLength(85)
+  expect(stored?.change.cause).toMatchObject({ mentionedClasses: expect.arrayContaining(['Flipper', 'JpegImageFlipper', 'JpegLossless', 'Main'].map((name) => `py:image_compare.py::${name}`)) })
+  await expectDiagramFramed()
+  await page.mouse.move(0, 0)
+  await page.screenshot({ path: 'test-results/visor-mentioned-classes-desktop.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('button', { name: 'Fit diagram', exact: true }).click()
+  await page.mouse.move(0, 0)
+  await expectDiagramFramed()
+  await page.screenshot({ path: 'test-results/visor-mentioned-classes-mobile.png', fullPage: true })
 })
 
 test('shows source-backed ownership and signals and enriches only matching historical versions', async () => {
@@ -260,9 +394,11 @@ test('shows source-backed ownership and signals and enriches only matching histo
   await writeFile(join(workspace, 'main.py'), changed)
   expect((await send('/hooks/raw', { ...hook, id: randomUUID(), event: 'postToolUse' })).status).toBe(202)
   await expect(page.getByTestId('change-entry')).toHaveCount(2)
-  await expect(page.getByTestId('class-node')).toHaveCount(1)
+  await expect(page.getByTestId('class-node')).toHaveCount(2)
   await expect(page.getByRole('heading', { name: 'Main', exact: true })).toBeVisible()
-  await expect(page.locator('.relation-label')).toHaveCount(0)
+  await expect(page.getByTestId('class-node').filter({ has: page.getByRole('heading', { name: 'Viewer', exact: true }) })).toHaveAttribute('data-change', 'unchanged')
+  await expect(page.locator('.relation-label')).toHaveCount(3)
+  await expect(page.getByRole('heading', { name: 'Base', exact: true })).toHaveCount(0)
   const currentLabels = await page.evaluate(async () => {
     const latest = (await window.visorHistory?.listChanges('relations'))?.[0]
     return latest ? (await window.visorHistory?.getChange(latest.id))?.model.relations.map((relation) => relation.label) : undefined

@@ -23,6 +23,7 @@ export interface ChangeStore extends SnapshotStore {
   latestChange(sessionId: string): StoredChange | null
   previousChange(sessionId: string, seq: number): StoredChange | null
   hasEvent(id: string): boolean
+  pendingClassMentions(sessionId: string, toolCallId: string): string[]
   nextEventSequence(sessionId: string): number
   nextChangeSequence(sessionId: string): number
   commit(event: VisorEvent, project: ProjectContext, options?: { baseline?: StoredChange; change?: StoredChange; snapshots?: SnapshotFile[]; pending?: SnapshotFile[] }): boolean
@@ -117,6 +118,12 @@ export class SqliteChangeStore implements ChangeStore {
   }
 
   hasEvent(id: string): boolean { return Boolean(this.database.prepare('SELECT id FROM events WHERE id = ?').get(id)) }
+  pendingClassMentions(sessionId: string, toolCallId: string): string[] {
+    const value = this.database.prepare("SELECT document_json FROM events WHERE session_id = ? AND kind = 'edit.pending' AND json_extract(document_json, '$.payload.toolCallId') = ? ORDER BY seq DESC LIMIT 1").get(sessionId, toolCallId)
+    if (!value) return []
+    const event = visorEventSchema.parse(JSON.parse(textField(record(value), 'document_json')))
+    return event.kind === 'edit.pending' ? event.payload.mentionedClasses ?? [] : []
+  }
   nextEventSequence(sessionId: string): number { return Number(record(this.database.prepare('SELECT COALESCE(MAX(seq) + 1, 0) AS seq FROM events WHERE session_id = ?').get(sessionId)).seq) }
   nextChangeSequence(sessionId: string): number { return Number(record(this.database.prepare('SELECT COALESCE(MAX(seq) + 1, 0) AS seq FROM changes WHERE session_id = ?').get(sessionId)).seq) }
 

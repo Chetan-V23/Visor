@@ -1,7 +1,7 @@
 import { posix, win32 } from 'node:path'
 import { z } from 'zod'
 import { isFileChangeHook, rawHookSchema } from '@visor/bridge'
-import { pathSchema, visorEventSchema, type HarnessAdapter, type VisorEvent } from '@visor/protocol'
+import { pathSchema, visorEventSchema, type CodeModel, type HarnessAdapter, type VisorEvent } from '@visor/protocol'
 
 export type Normalization = { ok: true; events: VisorEvent[] } | { ok: false; error: string }
 export interface AdapterContext { workspaceRoot: string; workspaceId: string; seq: number }
@@ -19,6 +19,11 @@ const inputSchema = z.object({
   input: z.string().optional(),
   replacements: z.array(z.object({ filePath: z.string().optional(), file_path: z.string().optional() }).passthrough()).optional()
 }).passthrough()
+const snippetSchema = z.object({
+  explanation: z.string().optional(), content: z.string().optional(), contents: z.string().optional(),
+  text: z.string().optional(), code: z.string().optional(), oldString: z.string().optional(), newString: z.string().optional(),
+  old_string: z.string().optional(), new_string: z.string().optional()
+}).strip()
 
 export function relativePath(candidate: string, workspaceRoot: string): string | null {
   if (candidate.split(/[\\/]/).includes('..') || /[\u0000-\u001f]/.test(candidate)) return null
@@ -31,6 +36,58 @@ export function relativePath(candidate: string, workspaceRoot: string): string |
   const relative = paths.relative(paths.resolve(root), resolved).replace(/\\/g, '/')
   const parsed = pathSchema.safeParse(relative)
   return parsed.success ? parsed.data : null
+}
+
+export function mentionedClassIds(value: unknown, context: { workspaceRoot: string; files: string[]; models: CodeModel[] }): string[] {
+  const raw = rawHookSchema.safeParse(value)
+  if (!raw.success || !isFileChangeHook(raw.data)) return []
+  const payload = payloadSchema.safeParse(raw.data.payload)
+  if (!payload.success) return []
+  const input = inputSchema.safeParse(payload.data.tool_input ?? payload.data.toolInput)
+  if (!input.success) return []
+  const namesByFile = new Map(context.files.map((file) => [file, new Set<string>()]))
+  const addText = (file: string | null, text: string): void => {
+    const names = file ? namesByFile.get(file) : undefined
+    if (names) for (const name of text.match(/[A-Za-z_]\w*/g) ?? []) names.add(name)
+  }
+  const addSnippet = (file: string | null, value: unknown): void => {
+    const snippet = snippetSchema.safeParse(value)
+    if (snippet.success) for (const text of Object.values(snippet.data)) if (text) addText(file, text)
+  }
+  if (input.data.input) {
+    let file: string | null = null
+    for (const line of input.data.input.split(/\r?\n/)) {
+      const header = /^\*\*\* (?:Add File|Update File|Delete File|Move to): (.+)$/.exec(line)
+      if (header?.[1]) file = relativePath(header[1].trim(), context.workspaceRoot)
+      else if (!line.startsWith('*** ')) addText(file, line)
+    }
+  }
+  for (const replacement of input.data.replacements ?? []) addSnippet(relativePath(replacement.filePath ?? replacement.file_path ?? '', context.workspaceRoot), replacement)
+  const file = relativePath(input.data.filePath ?? input.data.file_path ?? input.data.path ?? '', context.workspaceRoot)
+  addSnippet(file, input.data)
+  if (typeof input.data.explanation === 'string') for (const path of context.files) addText(path, input.data.explanation)
+  const classes = new Map(context.models.flatMap((model) => model.classes.map((symbol) => [symbol.id, symbol] as const)))
+  const byName = new Map<string, CodeModel['classes']>()
+  const owners = new Map<string, string>()
+  for (const symbol of classes.values()) {
+    const name = symbol.name.split('.').at(-1) ?? symbol.name
+    const matches = byName.get(name) ?? []
+    matches.push(symbol)
+    byName.set(name, matches)
+    for (const id of [symbol.id, ...symbol.methods.map((method) => method.id), ...symbol.fields.map((field) => field.id)]) owners.set(id, symbol.id)
+  }
+  const result = new Set<string>()
+  for (const [path, names] of namesByFile) {
+    const linked = new Set(context.models.flatMap((model) => model.relations.filter((relation) => classes.get(owners.get(relation.from) ?? '')?.file === path).map((relation) => owners.get(relation.to))))
+    for (const name of names) {
+      const candidates = byName.get(name) ?? []
+      const local = candidates.filter((symbol) => symbol.file === path)
+      const related = candidates.filter((symbol) => linked.has(symbol.id))
+      const matches = local.length ? local : related.length === 1 ? related : candidates.length === 1 ? candidates : []
+      for (const symbol of matches) result.add(symbol.id)
+    }
+  }
+  return [...result]
 }
 
 export class CopilotAdapter implements HarnessAdapter<unknown> {

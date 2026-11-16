@@ -140,7 +140,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('visor:history:changes', (event, sessionId: unknown) => {
       requireRenderer(event)
       if (typeof sessionId !== 'string' || !sessionId || sessionId.length > 512) throw new Error('Invalid session identity.')
-      return store.listChanges(sessionId)
+      return pipeline?.listChanges(sessionId) ?? []
     })
     ipcMain.handle('visor:history:get', (event, id: unknown) => {
       requireRenderer(event)

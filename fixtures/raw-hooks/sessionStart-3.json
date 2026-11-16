@@ -1,0 +1,15 @@
+{
+  "id": "58a7e265-9227-4488-805f-4e398d192f2b",
+  "source": "copilot",
+  "event": "sessionStart",
+  "receivedAt": 1794824413132,
+  "payload": {
+    "timestamp": "2026-11-16T10:20:12.654Z",
+    "hook_event_name": "SessionStart",
+    "session_id": "4abbfff5-464c-4da6-ac24-5e481f6737f5",
+    "transcript_path": "<path>",
+    "source": "new",
+    "model": "auto",
+    "cwd": "<workspace>"
+  }
+}

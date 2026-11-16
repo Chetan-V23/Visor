@@ -1,0 +1,21 @@
+{
+  "id": "1b05a192-2de9-416c-bbbf-e01b24a67afe",
+  "source": "copilot",
+  "event": "postToolUse",
+  "receivedAt": 1794824430478,
+  "payload": {
+    "timestamp": "2026-11-16T10:20:29.930Z",
+    "hook_event_name": "PostToolUse",
+    "session_id": "4abbfff5-464c-4da6-ac24-5e481f6737f5",
+    "transcript_path": "<path>",
+    "tool_name": "read_file",
+    "tool_input": {
+      "filePath": "image_compare.diagram.md",
+      "startLine": 1,
+      "endLine": 180
+    },
+    "tool_response": "",
+    "tool_use_id": "call_07vfD5Fx7nccAGKXhMJll489__vscode-1794824010203",
+    "cwd": "<workspace>"
+  }
+}

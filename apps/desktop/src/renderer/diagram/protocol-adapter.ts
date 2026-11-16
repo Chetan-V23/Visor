@@ -100,9 +100,17 @@ export function toDiagramView(model: CodeModel, change: Change | null): Pick<Dia
       }
     }
   }
+  const touchedClasses = new Set([...addedClasses, ...removedClasses, ...modifiedClasses])
   const visibleClasses = change && change.cause.kind !== 'baseline'
-    ? new Set([...addedClasses, ...removedClasses, ...modifiedClasses])
+    ? new Set(touchedClasses)
     : new Set(classes.keys())
+  if (change?.cause.kind === 'tool') for (const id of change.cause.mentionedClasses ?? []) if (classes.has(id)) visibleClasses.add(id)
+  for (const delta of change?.delta ?? []) {
+    if (delta.op !== 'edge.add' && delta.op !== 'edge.remove') continue
+    const from = owners.get(delta.relation.from)
+    const to = owners.get(delta.relation.to)
+    if (from && to && touchedClasses.has(from)) visibleClasses.add(to)
+  }
   return {
     classes: [...classes.values()].filter((symbol) => visibleClasses.has(symbol.id)).map((symbol) => {
       const removed = removedMembers.get(symbol.id) ?? []
@@ -133,4 +141,10 @@ export function toDiagramChange(change: Change, model: CodeModel): DiagramChange
     files: change.files.length, added: change.files.reduce((total, file) => total + file.added, 0),
     deleted: change.files.reduce((total, file) => total + file.deleted, 0), classId
   }
+}
+
+export function toDiagramChanges(changes: Change[], model: CodeModel): DiagramChange[] {
+  const ordered = [...changes].sort((left, right) => right.seq - left.seq)
+  let number = ordered.filter((change) => change.cause.kind !== 'baseline').length
+  return ordered.map((change) => ({ ...toDiagramChange(change, model), number: change.cause.kind === 'baseline' ? 0 : number-- }))
 }

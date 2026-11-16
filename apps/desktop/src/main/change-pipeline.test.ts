@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { contentHash } from '@visor/core'
+import { contentHash, createChange } from '@visor/core'
 import { createRequire } from 'node:module'
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -69,6 +69,29 @@ it('recovers a post-only session as a late current-state baseline', async () => 
   expect(state.changes[0]?.change).toMatchObject({ seq: 0, cause: { observedAt: 'after-first-edit' } })
   expect(state.store.listSessions()[0]?.startObserved).toBe(false)
 })
+
+it('preserves pre-hook class mentions in SQLite when a new pipeline receives a snippet-free post', async () => {
+  const state = await setup()
+  const before = 'class A:\n    def run(self):\n        return 1\n\nclass Helper:\n    pass\n'
+  await writeFile(join(state.root, 'a.py'), before)
+  await writeFile(join(state.root, 'base.py'), 'class Base:\n    pass\n')
+  const input = { tool_name: 'multi_replace_string_in_file', tool_use_id: 'mention-call', tool_input: { explanation: 'Keep Helper and Base in view.', replacements: [{ filePath: 'a.py', oldString: 'return 1', newString: 'return 2' }] } }
+  state.pipeline.enqueue(state.raw('preToolUse', input))
+  await state.pipeline.flush()
+  const expected = ['py:a.py::Helper', 'py:base.py::Base']
+  expect(state.store.pendingClassMentions('test', 'mention-call')).toEqual(expected)
+  const pipeline = new ChangePipeline({ store: state.store, extractors: [python.extractor], onChangeAdded: (change) => state.changes.push(change), onNormalized: (_, error) => { if (error) state.errors.push(error) } })
+  await writeFile(join(state.root, 'a.py'), before.replace('return 1', 'return 2'))
+  pipeline.enqueue(state.raw('postToolUse', { ...input, tool_input: { replacements: [{ filePath: 'a.py' }] } }))
+  await pipeline.flush()
+  expect(state.errors).toEqual([])
+  const stored = state.store.latestChange('test')
+  expect(stored?.change.cause).toMatchObject({ mentionedClasses: expected })
+  expect(stored?.model.classes.map((symbol) => symbol.name)).toEqual(['A', 'Helper', 'Base'])
+  if (!stored) throw new Error('Missing stored change.')
+  expect(pipeline.snapshot(stored).change.cause).toEqual(stored.change.cause)
+})
+
 it('does not create changes for reads, explicit failures, or unchanged disk content', async () => {
   const state = await setup()
   state.pipeline.enqueue(state.raw('sessionStart'))
@@ -78,6 +101,70 @@ it('does not create changes for reads, explicit failures, or unchanged disk cont
   await state.pipeline.flush()
   expect(state.errors).toEqual([])
   expect(state.store.listChanges('test')).toHaveLength(1)
+})
+it.each([{ files: ['a.diagram.md'] }, { files: ['a.py', 'a.diagram.md'] }])('does not create history entries for documentation-only edits ($files)', async ({ files }) => {
+  const state = await setup()
+  await writeFile(join(state.root, 'a.diagram.md'), 'run(self)\n')
+  state.pipeline.enqueue(state.raw('sessionStart'))
+  await state.pipeline.flush()
+  const input = { tool_name: 'apply_patch', tool_use_id: 'documentation-call', tool_input: { input: `*** Begin Patch\n${files.map((path) => `*** Update File: ${path}`).join('\n')}\n*** End Patch` } }
+  state.pipeline.enqueue(state.raw('preToolUse', input))
+  await writeFile(join(state.root, 'a.diagram.md'), 'run(self, value)\n')
+  const post = state.raw('postToolUse', input)
+  state.pipeline.enqueue(post)
+  await state.pipeline.flush()
+  expect(state.errors).toEqual([])
+  expect(state.store.hasEvent(post.id)).toBe(true)
+  expect(state.events.map((event) => event.kind)).toEqual(['session.started', 'edit.pending', 'edit.applied'])
+  expect(state.store.listChanges('test').map((change) => change.seq)).toEqual([0])
+  expect(state.changes).toHaveLength(1)
+})
+it.each([{ files: ['a.py'] }, { files: ['a.py', 'a.diagram.md'] }])('records source edits without semantic changes ($files)', async ({ files }) => {
+  const state = await setup()
+  await writeFile(join(state.root, 'a.diagram.md'), 'run(self)\n')
+  state.pipeline.enqueue(state.raw('sessionStart'))
+  await state.pipeline.flush()
+  const input = { tool_name: 'apply_patch', tool_use_id: 'source-call', tool_input: { input: `*** Begin Patch\n${files.map((path) => `*** Update File: ${path}`).join('\n')}\n*** End Patch` } }
+  state.pipeline.enqueue(state.raw('preToolUse', input))
+  await writeFile(join(state.root, 'a.py'), 'class A:\n    def run(self):\n        return 1\n\nSETTING = 2\n')
+  if (files.includes('a.diagram.md')) await writeFile(join(state.root, 'a.diagram.md'), 'run(self, value)\n')
+  state.pipeline.enqueue(state.raw('postToolUse', input))
+  await state.pipeline.flush()
+  expect(state.errors).toEqual([])
+  expect(state.pipeline.listChanges('test').map((change) => change.seq)).toEqual([1, 0])
+  expect(state.changes[1]?.change.files.map((file) => file.path)).toEqual(files)
+  expect(state.changes[1]?.change.delta.every((delta) => delta.op === 'code.hunks')).toBe(true)
+})
+it('hides legacy documentation-only history while keeping source-less code records', async () => {
+  const state = await setup()
+  state.pipeline.enqueue(state.raw('sessionStart'))
+  await state.pipeline.flush()
+  const baseline = state.store.latestChange('test')
+  const session = state.store.listSessions()[0]
+  if (!baseline || !session) throw new Error('Missing baseline session.')
+  const event: Extract<VisorEvent, { kind: 'edit.applied' }> = {
+    v: 1, id: randomUUID(), sessionId: 'test', seq: 1, ts: Date.now(), source: 'copilot', kind: 'edit.applied',
+    payload: { tool: 'apply_patch', toolCallId: 'legacy-documentation', files: ['a.diagram.md'], intent: 'create', outcome: 'succeeded' }
+  }
+  const text = 'run(self, value)\n'
+  const change = createChange(event, 1, baseline.model, baseline.model, [{ path: 'a.diagram.md', before: null, after: text }])
+  state.store.commit(event, { id: session.project.id, root: state.root, name: session.project.name, branch: '' }, {
+    change: { change, model: baseline.model }, snapshots: [{ path: 'a.diagram.md', text }]
+  })
+  expect(state.store.listChanges('test').map((stored) => stored.seq)).toEqual([1, 0])
+  expect(state.pipeline.listChanges('test').map((stored) => stored.seq)).toEqual([0])
+  expect(state.store.getChange(change.id)?.change).toEqual(change)
+  expect(state.store.hasEvent(event.id)).toBe(true)
+  const sourceEvent: typeof event = { ...event, id: randomUUID(), seq: 2, payload: { ...event.payload, files: ['a.py'] } }
+  const sourceChange: StoredChange = { model: baseline.model, change: {
+    ...change, id: sourceEvent.id, seq: 2,
+    cause: { kind: 'tool', eventId: sourceEvent.id, tool: sourceEvent.payload.tool },
+    files: [{ path: 'a.py', beforeHash: null, afterHash: null, added: 1, deleted: 1 }],
+    delta: [{ v: 1, op: 'code.hunks', file: 'a.py', hunks: [] }]
+  } }
+  state.store.commit(sourceEvent, { id: session.project.id, root: state.root, name: session.project.name, branch: '' }, { change: sourceChange })
+  expect(state.pipeline.listChanges('test').map((stored) => stored.seq)).toEqual([2, 0])
+  expect(state.store.getChange(change.id)?.change).toEqual(change)
 })
 it('rejects escaped and linked source paths, then keeps processing valid events', async () => {
   const state = await setup()

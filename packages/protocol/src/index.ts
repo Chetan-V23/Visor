@@ -100,7 +100,8 @@ const eventBase = {
 const editIntentSchema = z.enum(['create', 'edit', 'delete', 'rename'])
 const editPayload = {
   tool: identitySchema, toolCallId: identitySchema.optional(),
-  files: z.array(pathSchema).min(1), intent: editIntentSchema
+  files: z.array(pathSchema).min(1), intent: editIntentSchema,
+  mentionedClasses: z.array(symbolIdSchema).max(4096).optional()
 }
 export const visorEventSchema = z.discriminatedUnion('kind', [
   z.object({ ...eventBase, kind: z.literal('session.started'), payload: z.object({ workspaceId: identitySchema, model: z.string().optional() }).strip() }).strip(),
@@ -136,7 +137,7 @@ export const changeFileSchema = z.object({
 export const changeSchema = z.object({
   v: versionSchema, id: z.uuid(), sessionId: identitySchema, seq: sequenceSchema, ts: timestampSchema,
   cause: z.discriminatedUnion('kind', [
-    z.object({ kind: z.literal('tool'), eventId: z.uuid(), tool: identitySchema, toolCallId: identitySchema.optional(), relatedEventIds: z.array(z.uuid()).optional() }).strip(),
+    z.object({ kind: z.literal('tool'), eventId: z.uuid(), tool: identitySchema, toolCallId: identitySchema.optional(), relatedEventIds: z.array(z.uuid()).optional(), mentionedClasses: z.array(symbolIdSchema).max(4096).optional() }).strip(),
     z.object({ kind: z.literal('external'), eventIds: z.array(z.uuid()).min(1), source: sourceSchema }).strip(),
     z.object({ kind: z.literal('baseline'), eventId: z.uuid(), observedAt: z.enum(['session-start', 'before-first-edit', 'after-first-edit']) }).strip()
   ]),

@@ -14,6 +14,8 @@ export function App({ source }: { source: DiagramSource }) {
   const [hooks, setHooks] = useState<HookSnapshot | null>(null)
   const reducedMotion = useReducedMotion()
   const selectedChange = view.changes.find((change) => change.id === selectedId)
+  const changeCount = view.changes.filter((change) => change.number > 0).length
+  const selectedLabel = selectedChange?.number === 0 ? 'Baseline' : selectedChange ? `Change ${selectedChange.number}` : 'Session'
 
   useEffect(() => {
     const bridge = window.visorHooks
@@ -42,7 +44,7 @@ export function App({ source }: { source: DiagramSource }) {
           history.selectChange(next.id)
           event.currentTarget.querySelector<HTMLButtonElement>(`[data-change-id="${next.id}"]`)?.focus()
         }}>
-          <div className="changes-heading"><h2>Changes <span className="change-count">{view.changes.length}</span></h2><label className="live-toggle"><input type="checkbox" role="switch" aria-label="Live" checked={history.live} onChange={(event) => history.setLive(event.currentTarget.checked)} /><span>Live</span></label></div>
+          <div className="changes-heading"><h2>Changes <span className="change-count">{changeCount}</span></h2><label className="live-toggle"><input type="checkbox" role="switch" aria-label="Live" checked={history.live} onChange={(event) => history.setLive(event.currentTarget.checked)} /><span>Live</span></label></div>
           <ol className="changes-list">
             {view.changes.map((change) => (
               <li key={change.id}>
@@ -61,13 +63,13 @@ export function App({ source }: { source: DiagramSource }) {
         <header className="session-header">
           <div className="session-breadcrumb"><span>Sessions</span><ChevronRight size={13} /><span>{view.session.project}</span>{history.preview && <span className="sample-label">Sample session</span>}</div>
           <div className="session-title"><h1 title={view.session.name}>{view.session.name}</h1>{view.session.branch && <span className="branch"><GitBranch size={14} />{view.session.branch}</span>}</div>
-          <div className="session-meta"><span>GitHub Copilot</span>{history.session && <><span aria-hidden="true">/</span><time>{new Date(history.session.startedAt).toLocaleDateString()}</time></>}<span aria-hidden="true">/</span><span>{view.changes.length} changes</span>{history.loading && <span role="status">Loading</span>}</div>
+          <div className="session-meta"><span>GitHub Copilot</span>{history.session && <><span aria-hidden="true">/</span><time>{new Date(history.session.startedAt).toLocaleDateString()}</time></>}<span aria-hidden="true">/</span><span>{changeCount} {changeCount === 1 ? 'change' : 'changes'}</span>{history.loading && <span role="status">Loading</span>}</div>
           {history.error && <p role="alert" className="history-error">{history.error}</p>}
         </header>
         <motion.div className="diagram-region" initial={reducedMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
           <DiagramCanvas view={view} />
         </motion.div>
-        <footer className="session-footer"><span><FileCode2 size={14} />{selectedChange ? `Change ${selectedChange.number}` : 'Session'}<span className="footer-separator" />{selectedChange?.summary}</span><span>Local workspace</span></footer>
+        <footer className="session-footer"><span><FileCode2 size={14} />{selectedLabel}<span className="footer-separator" />{selectedChange?.summary}</span><span>Local workspace</span></footer>
       </main>
       {settingsOpen && <Settings hooks={hooks} preview={history.preview} onClose={() => setSettingsOpen(false)} />}
     </div>

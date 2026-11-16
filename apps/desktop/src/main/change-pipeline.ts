@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { basename } from 'node:path'
 import type { RawHook } from '@visor/bridge'
-import { assembleModel, contentHash, CopilotAdapter, createChange, diffModels } from '@visor/core'
-import { changeSchema, type CodeModel, type LanguageExtractor, type VisorEvent } from '@visor/protocol'
+import { assembleModel, contentHash, CopilotAdapter, createChange, diffModels, mentionedClassIds } from '@visor/core'
+import { changeSchema, type Change, type CodeModel, type LanguageExtractor, type VisorEvent } from '@visor/protocol'
 import type { ChangeStore, SnapshotFile, StoredChange } from '@visor/store'
 import { readSource, readSourceSync, scanPython, snapshotPolicy, workspaceRoot } from './workspace'
 
@@ -40,6 +40,11 @@ export class ChangePipeline {
   }
 
   async flush(): Promise<void> { await this.queue }
+
+  listChanges(sessionId: string): Change[] {
+    return this.options.store.listChanges(sessionId).filter((change) => change.cause.kind === 'baseline'
+      || change.files.some((file) => this.options.extractors.some((extractor) => extractor.matches(file.path))))
+  }
 
   snapshot(stored: StoredChange): StoredChange {
     const { change } = stored
@@ -103,6 +108,11 @@ export class ChangePipeline {
         })
       }
     }
+    if (event.kind === 'edit.pending') {
+      const model = latest?.model ?? baseline?.model
+      const mentions = model ? mentionedClassIds(raw, { workspaceRoot: requestedRoot, files: affected, models: [model] }) : []
+      if (mentions.length) event.payload.mentionedClasses = mentions
+    }
     const pending = event.kind === 'edit.pending'
       ? captured ?? await Promise.all(event.payload.files.map(async (path) => ({ path, text: await readSource(root, path) }))) : undefined
     let change: StoredChange | undefined
@@ -121,9 +131,13 @@ export class ChangePipeline {
         if (file.text === null) after.delete(file.path)
         else after.set(file.path, file.text)
       }
-      if (pairs.some((pair) => pair.before !== pair.after)) {
+      if (pairs.some((pair) => pair.before !== pair.after && this.options.extractors.some((extractor) => extractor.matches(pair.path)))) {
         const model = this.model(after, event.sessionId)
-        change = { change: createChange(event, store.nextChangeSequence(event.sessionId), this.model(before, event.sessionId), model, pairs), model }
+        const beforeModel = this.model(before, event.sessionId)
+        const pendingMentions = event.payload.toolCallId ? store.pendingClassMentions(event.sessionId, event.payload.toolCallId) : []
+        const mentions = new Set([...pendingMentions, ...mentionedClassIds(raw, { workspaceRoot: requestedRoot, files: affected, models: [beforeModel, model] })])
+        if (mentions.size) event.payload.mentionedClasses = [...mentions]
+        change = { change: createChange(event, store.nextChangeSequence(event.sessionId), beforeModel, model, pairs), model }
       }
     }
     if (!store.commit(event, project, { ...(baseline ? { baseline } : {}), ...(change ? { change } : {}), ...(snapshots ? { snapshots } : {}), ...(pending ? { pending } : {}) })) return

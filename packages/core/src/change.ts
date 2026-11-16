@@ -45,7 +45,7 @@ export function createChange(event: Extract<VisorEvent, { kind: 'edit.applied' }
   })
   return changeSchema.parse({
     v: 1, id: event.id, sessionId: event.sessionId, seq, ts: event.ts,
-    cause: { kind: 'tool', eventId: event.id, tool: event.payload.tool, ...(event.payload.toolCallId ? { toolCallId: event.payload.toolCallId } : {}) },
+    cause: { kind: 'tool', eventId: event.id, tool: event.payload.tool, ...(event.payload.toolCallId ? { toolCallId: event.payload.toolCallId } : {}), ...(event.payload.mentionedClasses?.length ? { mentionedClasses: event.payload.mentionedClasses } : {}) },
     summary: summarize(delta, files.length), files, delta
   })
 }

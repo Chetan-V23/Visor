@@ -1,0 +1,21 @@
+{
+  "id": "98384c6f-cf98-4651-932a-1e4d811a2023",
+  "source": "copilot",
+  "event": "postToolUse",
+  "receivedAt": 1794824468984,
+  "payload": {
+    "timestamp": "2026-11-16T10:21:08.393Z",
+    "hook_event_name": "PostToolUse",
+    "session_id": "4abbfff5-464c-4da6-ac24-5e481f6737f5",
+    "transcript_path": "<path>",
+    "tool_name": "grep_search",
+    "tool_input": {
+      "defaultMaxResults": 100,
+      "query": "DICOM|Dicom|dicom|pydicom",
+      "isRegexp": true
+    },
+    "tool_response": "",
+    "tool_use_id": "call_HtqSo8d3jna6VlRKtFZONBgh__vscode-1794824010210",
+    "cwd": "<workspace>"
+  }
+}

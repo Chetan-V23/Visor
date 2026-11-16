@@ -1,0 +1,21 @@
+{
+  "id": "6e9d6f46-12cc-4a81-87dc-2c502702a93d",
+  "source": "copilot",
+  "event": "postToolUse",
+  "receivedAt": 1794824421826,
+  "payload": {
+    "timestamp": "2026-11-16T10:20:21.229Z",
+    "hook_event_name": "PostToolUse",
+    "session_id": "4abbfff5-464c-4da6-ac24-5e481f6737f5",
+    "transcript_path": "<path>",
+    "tool_name": "read_file",
+    "tool_input": {
+      "filePath": "README.md",
+      "startLine": 1,
+      "endLine": 220
+    },
+    "tool_response": "",
+    "tool_use_id": "call_hYo4po04d0j8dQ7E32iYDGc5__vscode-1794824010202",
+    "cwd": "<workspace>"
+  }
+}

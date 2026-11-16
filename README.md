@@ -4,7 +4,11 @@ Visor is a standalone Electron app that turns Copilot Python file edits into cla
 
 The native app shows actual stored sessions, not the hardcoded sample. Select a change to see its graph from saved snapshots. **Live** follows new changes, and selecting an older entry pauses it. Changed classes glow. The first observed prompt becomes the session title, with the start time as a fallback. An app with no observed sessions starts empty.
 
-Edit diagrams show only touched classes and relationships between them. Added and removed classes remain visible with their change colors. An untouched sibling in an edited file is not included just because the file changed. Text hunks use changed lines, not patch context, to find their containing class. Constants-only edits do not invent a class node. Stored models remain complete, and baseline snapshots still show the project for reference.
+**Baseline** is the saved state before the first edit, not Change 1, and does not count toward the change total. The first visible edit is **Change 1**. Later visible edits are numbered consecutively, even when older documentation-only entries are hidden. A post-only recovery remains marked as a late baseline because the pre-edit state was not observed.
+
+Edit diagrams show touched classes, project classes explicitly mentioned in the tool call, and direct targets of changed relationships. Referenced but unedited classes remain styled as unchanged. Classes named in replacement text, patch content, or the tool explanation can be included even when they were not edited. An untouched sibling is not included just because its file changed, and references do not recursively pull in the project graph. Text hunks use changed lines to find edited classes. Constants-only edits do not invent class nodes.
+
+Mentioned names resolve in the edited file first, then through known relationships or unique project-wide matches. Ambiguous foreign names remain unresolved. Only resolved class IDs are added to saved events and changes, not another copy of the tool's code. Pre-hook mentions survive a snippet-free post hook. Previously saved changes without mention metadata still retain direct targets of changed relationships. Stored models remain complete, and baseline snapshots show the project for reference.
 
 Hover or focus a method to see its full stored source. Added lines are green, removed lines are red, and unchanged lines are black. The tooltip uses the selected change's snapshots, not the current file on disk. Long methods scroll. If source snapshots are missing, the tooltip shows the signature and a source-unavailable state.
 
@@ -130,6 +134,8 @@ Capture redacts common credential fields, common token patterns, transcript path
 ## Snapshot boundaries
 
 Touched files are captured during hook acceptance, before the tool can continue. Parsing and SQLite writes run afterward in a serialized queue. Each post-hook retains its own after-state, so fast successive calls remain separate. A failed tool or an unchanged source produces no change.
+
+History entries require a changed file supported by a language extractor, currently Python. Documentation-only edits create no entry, but mixed Python and documentation edits remain one change. Previously saved documentation-only entries are hidden from the sidebar without deleting their history records.
 
 An observed session start produces baseline 0. If startup missed it, the first pre-hook captures a before-edit baseline. A post-only recovery uses the current after-state and labels the baseline late. Visor does not invent an earlier observation or missing prompt.
 
