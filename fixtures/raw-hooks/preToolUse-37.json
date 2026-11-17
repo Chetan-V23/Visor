@@ -1,0 +1,19 @@
+{
+  "id": "64bc6e8c-79eb-4f9c-8c65-9f56635053d6",
+  "source": "copilot",
+  "event": "preToolUse",
+  "receivedAt": 1794895240588,
+  "payload": {
+    "timestamp": "2026-11-17T06:00:39.920Z",
+    "hook_event_name": "PreToolUse",
+    "session_id": "d5a0e43b-c70b-4c39-8438-d549a0e03324",
+    "transcript_path": "<path>",
+    "tool_name": "execution_subagent",
+    "tool_input": {
+      "query": "Run a Python syntax/bytecode compile check on <workspace>\\image_compare.py only (for example, python -m py_compile image_compare.py, from the workspace directory). Do not execute the script, edit files, or run broader tests. Report the exact command and pass/fail output.",
+      "description": "Check Python syntax"
+    },
+    "tool_use_id": "call_L2LCfce4hdzUPUK7qtGplSIU__vscode-1794895178913",
+    "cwd": "<workspace>"
+  }
+}

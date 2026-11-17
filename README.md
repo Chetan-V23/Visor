@@ -121,9 +121,11 @@ The Electron main process binds a free port on `127.0.0.1`, generates a random t
 
 The Node `visor-hook` executable accepts an event argument and a JSON object on stdin. It wraps the payload with a UUID, `source: "copilot"`, an event name, and epoch-millisecond `receivedAt`. It checks the runtime, launches the configured desktop app if needed, waits up to three seconds for startup, and posts with a 500 ms timeout. Hook failures emit `{}` and exit zero. A 4.5-second watchdog bounds the invocation, and hook configuration allows five seconds. It never grants or denies tools.
 
-Only pre-tool and post-tool events for explicit file-changing tools launch or focus Visor. These include file creation, replacement, multi-replacement, patches, and notebook edits. Session start, prompts, read/search tools, terminal commands, and unknown tools do not trigger startup or focus. A planning request that actually creates or edits a file does trigger Visor. All event types remain available in the debug feed while Visor is running. Events received while Visor is closed are not buffered.
+Only pre-tool and post-tool events for explicit file-changing tools launch or focus Visor. These include file creation, replacement, multi-replacement, patches, and notebook edits. Session start, prompts, read/search tools, terminal commands, and unknown tools do not trigger startup or focus. A planning request that actually creates or edits a file does trigger Visor. All event types remain available in the debug feed while Visor is running. Session, prompt, and read events received while Visor is closed are not buffered.
 
-On Windows, startup is dispatched through the desktop shell. This prevents Electron from retaining PowerShell's hook output pipes after the hook exits. The cold-start Electron test checks that the captured hook command completes while Visor remains alive.
+Before a cold launch, a file-changing hook saves its touched-file snapshot in the data folder's `pending-hooks` directory. A pre-hook also saves the Python baseline before the tool can edit files. These private, atomic handoffs survive the hook's startup timeout. Visor replays them before publishing its runtime, deduplicates by event ID, and removes each handoff after committing it to SQLite. Cold capture uses the same workspace and source limits, with a combined 16 MiB budget for baseline and touched-file text. Failed captures still fail open.
+
+On Windows, startup is dispatched through the desktop shell. This prevents Electron from retaining PowerShell's hook output pipes after the hook exits. Cold-start Electron tests check hook completion, process liveness, and exact Baseline and Change 1 source, including a startup delay beyond the hook deadline.
 
 In dev builds, **Raw hook capture** saves envelopes to `fixtures/raw-hooks/<event>-<n>.json`. It is off by default. The recent-event buffer holds 200 events. Enabling capture writes the retained events once, then captures new events. Packaged builds disable this capture mode.
 
@@ -137,7 +139,7 @@ Touched files are captured during hook acceptance, before the tool can continue.
 
 History entries require a changed file supported by a language extractor, currently Python. Documentation-only edits create no entry, but mixed Python and documentation edits remain one change. Previously saved documentation-only entries are hidden from the sidebar without deleting their history records.
 
-An observed session start produces baseline 0. If startup missed it, the first pre-hook captures a before-edit baseline. A post-only recovery uses the current after-state and labels the baseline late. Visor does not invent an earlier observation or missing prompt.
+An observed session start produces baseline 0. If startup missed it, the first pre-hook captures a before-edit baseline, including across a cold launch. A post-only recovery without a saved pre-hook uses the current after-state and labels the baseline late. Existing late baselines are not reconstructed automatically. Visor does not invent an earlier observation or missing prompt.
 
 Source snapshots respect root and nested `.gitignore` rules, including exceptions. Credential paths such as `.env`, `.ssh`, and private key files are excluded. Standard repository, dependency, environment, and build folders are also excluded. Symbolic links and junctions are not followed. Each UTF-8 file is limited to 2 MiB. A baseline is limited to 500 Python files and 32 directory levels. A tool snapshot is limited to 64 paths and 16 MiB of source text.
 

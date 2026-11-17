@@ -481,6 +481,49 @@ async function expectDiagramFramed() {
   })).toBe(true)
 }
 
+test('shows standalone Python functions as a module with edit markers and source hover', async () => {
+  const workspace = join(dataFolder, 'functions-workspace')
+  await mkdir(workspace)
+  const source = 'def build(value: int) -> int:\n    """Build a value."""\n    return value\n\nasync def load():\n    return 1\n'
+  await writeFile(join(workspace, 'helpers.py'), source)
+  await expect.poll(() => readRuntime(dataFolder)).not.toBeNull()
+  const runtime = await readRuntime(dataFolder)
+  if (!runtime) throw new Error('Missing runtime.')
+  const hook: RawHook = { id: randomUUID(), source: 'copilot', event: 'preToolUse', receivedAt: Date.now(), payload: { cwd: workspace, session_id: 'standalone-functions', tool_name: 'edit_file', tool_use_id: 'functions-edit', tool_input: { filePath: 'helpers.py' } } }
+  const send = async (event: RawHook) => fetch(`http://127.0.0.1:${runtime.port}/hooks/raw`, { method: 'POST', headers: { Authorization: `Bearer ${runtime.token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(event) })
+  expect((await send(hook)).status).toBe(202)
+  const module = page.getByRole('article', { name: 'helpers.py module', exact: true })
+  await expect(module).toBeVisible()
+  await expect(module.locator('.class-kind')).toContainText('MODULE')
+  await expect(module.locator('.class-footer')).toHaveText('2 functions')
+  await expect(page.getByRole('region', { name: 'Code diagram', exact: true }).locator('.diagram-heading')).toContainText('1 module / 0 relationships')
+  await writeFile(join(workspace, 'helpers.py'), source.replace('return value', 'return value + 1'))
+  expect((await send({ ...hook, id: randomUUID(), event: 'postToolUse' })).status).toBe(202)
+  await expect(page.getByTestId('change-entry')).toHaveCount(2)
+  const build = module.getByRole('button', { name: 'edited build', exact: true })
+  await expect(build).toBeVisible()
+  await expect(page.getByTestId('class-node')).toHaveCount(1)
+  await expectDiagramFramed()
+  await page.evaluate(() => document.fonts.ready)
+  await build.hover()
+  const tooltip = page.getByRole('tooltip')
+  await expect(tooltip).toContainText('def build(value: int) -> int:')
+  await expect(tooltip.locator('.code-deleted')).toContainText('return value')
+  await expect(tooltip.locator('.code-added')).toContainText('return value + 1')
+  await page.screenshot({ path: 'test-results/visor-functions-desktop.png', fullPage: true })
+  await tooltip.focus()
+  await page.keyboard.press('Escape')
+  await page.mouse.move(0, 0)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('button', { name: 'Fit diagram', exact: true }).click()
+  await page.mouse.move(0, 0)
+  await expectDiagramFramed()
+  await build.focus()
+  await expect(tooltip).toContainText('return value + 1')
+  await expect.poll(() => tooltip.evaluate((panel) => { const bounds = panel.getBoundingClientRect(); return bounds.left >= 0 && bounds.right <= document.documentElement.clientWidth && bounds.top >= 0 && bounds.bottom <= window.innerHeight })).toBe(true)
+  await page.screenshot({ path: 'test-results/visor-functions-mobile.png', fullPage: true })
+})
+
 test('starts empty when no session has been observed', async () => {
   await expect(page.getByRole('heading', { name: 'No session', exact: true })).toBeVisible()
   await expect(page.getByTestId('class-node')).toHaveCount(0)
@@ -678,12 +721,19 @@ test('focuses the same window when a second app process starts', async () => {
   expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1)
 })
 
-test('cold PowerShell hook exits while its launched Electron app remains alive', async () => {
+for (const startupDelay of [0, 5000]) test(`cold PowerShell hook preserves the pre-edit baseline with ${startupDelay}ms startup delay`, async () => {
   test.skip(process.platform !== 'win32', 'The registered hook uses Windows PowerShell.')
   const coldFolder = await mkdtemp(join(tmpdir(), 'visor-cold-hook-'))
+  const workspace = join(coldFolder, 'workspace')
+  await mkdir(workspace)
+  const before = 'class Before:\n    pass\n'
+  const after = 'class After:\n    pass\n'
+  await writeFile(join(workspace, 'a.py'), before)
   const executable = await app.evaluate(() => process.execPath)
+  const appArgs = [resolve('apps/desktop/out/main/index.js')]
+  const launcher = `setTimeout(() => { require('node:child_process').spawn(${JSON.stringify(executable)}, ${JSON.stringify(appArgs)}, { detached: true, stdio: 'ignore' }).unref() }, ${startupDelay})`
   await writeJsonAtomic(join(coldFolder, 'config.json'), {
-    appPath: executable, appArgs: [resolve('apps/desktop/out/main/index.js')]
+    appPath: startupDelay ? process.execPath : executable, appArgs: startupDelay ? ['--eval', launcher] : appArgs
   })
   const hook = hookConfiguration({ nodePath: process.execPath, hookPath: resolve('apps/hook/bin/visor-hook.cjs') }).hooks.preToolUse?.[0]
   if (!hook) throw new Error('The installer did not create a preToolUse command.')
@@ -700,14 +750,30 @@ test('cold PowerShell hook exits while its launched Electron app remains alive',
     child.once('error', (error) => { clearTimeout(deadline); reject(error) })
     child.once('close', (code) => { clearTimeout(deadline); resolveResult({ code, timedOut: false }) })
   })
-  child.stdin.end('{"sessionId":"cold-hook-regression","tool_name":"create_file"}')
+  const input = { cwd: workspace, session_id: 'cold-hook-regression', tool_name: 'edit_file', tool_use_id: 'cold-edit', tool_input: { filePath: 'a.py' } }
+  child.stdin.end(JSON.stringify(input))
   try {
     const result = await completion
     expect({ ...result, stdout, stderr }).toEqual({ code: 0, timedOut: false, stdout: '{}\n', stderr: '' })
+    await writeFile(join(workspace, 'a.py'), after)
+    await expect.poll(() => readRuntime(coldFolder), { timeout: 15_000 }).not.toBeNull()
     const runtime = await readRuntime(coldFolder)
     expect(runtime).not.toBeNull()
     if (!runtime) throw new Error('The hook did not launch Electron.')
     process.kill(runtime.pid, 0)
+    const response = await fetch(`http://127.0.0.1:${runtime.port}/hooks/raw`, {
+      method: 'POST', headers: { Authorization: `Bearer ${runtime.token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: randomUUID(), source: 'copilot', event: 'postToolUse', receivedAt: Date.now(), payload: input })
+    })
+    expect(response.status).toBe(202)
+    const database = openDatabase(join(coldFolder, 'visor.db'))
+    try {
+      const store = new SqliteChangeStore(database, [])
+      await expect.poll(() => store.listChanges('cold-hook-regression').map((change) => change.seq)).toEqual([1, 0])
+      expect(store.sourceAtChange('cold-hook-regression', 0, 'a.py')).toBe(before)
+      expect(store.listChanges('cold-hook-regression').map((change) => change.seq)).toEqual([1, 0])
+      expect(store.sourceAtChange('cold-hook-regression', 1, 'a.py')).toBe(after)
+    } finally { database.close() }
   } finally {
     if (child.exitCode === null) child.kill()
     const runtime = await readRuntime(coldFolder)

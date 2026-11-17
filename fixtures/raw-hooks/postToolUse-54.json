@@ -1,0 +1,21 @@
+{
+  "id": "2763a73c-4222-4e20-aaf7-695ada89f1c6",
+  "source": "copilot",
+  "event": "postToolUse",
+  "receivedAt": 1794896351477,
+  "payload": {
+    "timestamp": "2026-11-17T06:19:10.910Z",
+    "hook_event_name": "PostToolUse",
+    "session_id": "d5a0e43b-c70b-4c39-8438-d549a0e03324",
+    "transcript_path": "<path>",
+    "tool_name": "read_file",
+    "tool_input": {
+      "filePath": "jpeg_reader.py",
+      "startLine": 1,
+      "endLine": 120
+    },
+    "tool_response": "",
+    "tool_use_id": "call_OE1RUaYfVjx55QLvlBT8rvJS__vscode-1794895178932",
+    "cwd": "<workspace>"
+  }
+}

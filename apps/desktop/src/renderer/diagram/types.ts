@@ -1,4 +1,4 @@
-import type { Relation } from '@visor/protocol'
+import type { ClassSymbol, Relation } from '@visor/protocol'
 
 export type TextChange = 'unchanged' | 'added' | 'deleted'
 
@@ -16,6 +16,7 @@ export interface DiagramClass {
   id: string
   name: string
   file: string
+  kind?: ClassSymbol['kind']
   methods: DiagramMethod[]
   change?: TextChange | 'modified'
 }

@@ -1,0 +1,20 @@
+{
+  "id": "258ffe47-c5c8-4a4e-82c3-bfc647a60ff0",
+  "source": "copilot",
+  "event": "preToolUse",
+  "receivedAt": 1794896350196,
+  "payload": {
+    "timestamp": "2026-11-17T06:19:09.460Z",
+    "hook_event_name": "PreToolUse",
+    "session_id": "d5a0e43b-c70b-4c39-8438-d549a0e03324",
+    "transcript_path": "<path>",
+    "tool_name": "read_file",
+    "tool_input": {
+      "filePath": "image_compare.py",
+      "startLine": 55,
+      "endLine": 90
+    },
+    "tool_use_id": "call_FXN7fzVtypKpZcWv0n2ZKkk9__vscode-1794895178934",
+    "cwd": "<workspace>"
+  }
+}

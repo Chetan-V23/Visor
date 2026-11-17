@@ -52,6 +52,15 @@ it('reviews the documented real capture set against its field mapping', async ()
 })
 
 describe('protocol v1', () => {
+  it('accepts module-owned functions while rejecting mismatched owners and reserved class IDs', () => {
+    const node = { id: 'py:helpers.py::<module>', kind: 'module', name: 'helpers.py', file: 'helpers.py', range: null, bases: [], fields: [], methods: [{ kind: 'method', id: 'py:helpers.py::build', name: 'build', signature: 'build()', docstring: '', range: null, bodyHash: null }] }
+    const model = { v: 1, classes: [node], relations: [] }
+    expect(codeModelSchema.safeParse(model).success).toBe(true)
+    expect(codeModelSchema.safeParse({ ...model, classes: [{ ...node, kind: 'class' }] }).success).toBe(false)
+    expect(codeModelSchema.safeParse({ ...model, classes: [{ ...node, id: 'py:helpers.py::Helpers' }] }).success).toBe(false)
+    expect(codeModelSchema.safeParse({ ...model, classes: [{ ...node, methods: [{ ...node.methods[0], id: 'py:other.py::build' }] }] }).success).toBe(false)
+  })
+
   it('represents ownership and signal connections with source evidence and bounded semantic facts', () => {
     const location = { start: { line: 1, column: 0 }, end: { line: 1, column: 5 } }
     for (const kind of ['composes', 'aggregates', 'associates', 'connects', 'depends']) {

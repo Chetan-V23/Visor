@@ -7,6 +7,6 @@
     "build": "esbuild src/forward.ts src/install.ts --bundle --platform=node --target=node22 --format=cjs --outdir=dist",
     "install:hooks": "node dist/install.js"
   },
-  "dependencies": { "@visor/bridge": "workspace:*" },
+  "dependencies": { "@visor/bridge": "workspace:*", "@visor/core": "workspace:*" },
   "devDependencies": { "esbuild": "^0.25.12" }
 }

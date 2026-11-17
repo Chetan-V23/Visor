@@ -1,0 +1,22 @@
+{
+  "id": "dd1bbdbb-8750-4dd9-96e1-74fa00d4504f",
+  "source": "copilot",
+  "event": "preToolUse",
+  "receivedAt": 1794896361623,
+  "payload": {
+    "timestamp": "2026-11-17T06:19:21.062Z",
+    "hook_event_name": "PreToolUse",
+    "session_id": "d5a0e43b-c70b-4c39-8438-d549a0e03324",
+    "transcript_path": "<path>",
+    "tool_name": "get_errors",
+    "tool_input": {
+      "filePaths": [
+        "<workspace>\\jpeg_reader.py",
+        "<workspace>\\image_compare.py",
+        "<workspace>\\calculations.py"
+      ]
+    },
+    "tool_use_id": "call_pcWyUUJSPqMXdgIQPGKnkgPk__vscode-1794895178936",
+    "cwd": "<workspace>"
+  }
+}

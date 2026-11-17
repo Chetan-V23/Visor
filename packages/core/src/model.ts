@@ -2,7 +2,13 @@ import { posix } from 'node:path'
 import { codeModelSchema, type ClassSymbol, type CodeModel, type FileModel, type GraphDelta, type Relation, type SemanticDocument, type SymbolReference } from '@visor/protocol'
 
 export function assembleModel(files: FileModel[], semantic: SemanticDocument[] = []): CodeModel {
-  const classes = files.flatMap((file) => file.classes)
+  const classes = files.flatMap((file) => [
+    ...file.classes,
+    ...(file.functions.length ? [{
+      id: `${file.language}:${file.file}::<module>`, kind: 'module', name: posix.basename(file.file),
+      file: file.file, range: null, bases: [], methods: file.functions, fields: []
+    } satisfies ClassSymbol] : [])
+  ])
   const byId = new Map(classes.map((symbol) => [symbol.id, symbol]))
   const modules = new Map(files.map((file) => [file.file.replace(/\.py$/, '').replace(/\/__init__$/, '').replace(/\//g, '.'), file]))
   const resolve = (file: FileModel, reference: SymbolReference, seen = new Set<string>()): ClassSymbol | undefined => {
@@ -112,9 +118,9 @@ export function diffModels(before: CodeModel, after: CodeModel): GraphDelta[] {
 
 export function summarize(delta: GraphDelta[], fileCount: number): string {
   const added = delta.filter((item) => item.op === 'node.add')
-  if (added.length) return `Added ${added.length === 1 ? `class ${added[0]?.node.name}` : `${added.length} classes`}`
+  if (added.length) return `Added ${added.length === 1 ? `${added[0]?.node.kind === 'module' ? 'module' : 'class'} ${added[0]?.node.name}` : `${added.length} ${added.some((item) => item.node.kind === 'module') ? 'nodes' : 'classes'}`}`
   const removed = delta.filter((item) => item.op === 'node.remove')
-  if (removed.length) return `Removed ${removed.length === 1 ? `class ${removed[0]?.node.name}` : `${removed.length} classes`}`
+  if (removed.length) return `Removed ${removed.length === 1 ? `${removed[0]?.node.kind === 'module' ? 'module' : 'class'} ${removed[0]?.node.name}` : `${removed.length} ${removed.some((item) => item.node.kind === 'module') ? 'nodes' : 'classes'}`}`
   const member = delta.find((item) => item.op === 'member.change' || item.op === 'member.add' || item.op === 'member.remove')
   if (member && (member.op === 'member.change' || member.op === 'member.add' || member.op === 'member.remove')) {
     const name = member.op === 'member.change' ? member.after.id : member.member.id

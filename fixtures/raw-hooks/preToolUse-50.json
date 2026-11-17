@@ -1,0 +1,22 @@
+{
+  "id": "4c5fa361-b29c-42b7-8507-f8933951c760",
+  "source": "copilot",
+  "event": "preToolUse",
+  "receivedAt": 1794895966864,
+  "payload": {
+    "timestamp": "2026-11-17T06:12:46.275Z",
+    "hook_event_name": "PreToolUse",
+    "session_id": "d5a0e43b-c70b-4c39-8438-d549a0e03324",
+    "transcript_path": "<path>",
+    "tool_name": "run_in_terminal",
+    "tool_input": {
+      "command": "Set-Location '<workspace>'; & '.\\.venv\\Scripts\\python.exe' -c \"import numpy as np; from calculations import Calculations; result = Calculations.calculate_mean(np.array([2.0, 4.0])); assert result == 3.0, result; print(result)\"",
+      "explanation": "Run the requested focused runtime check in the workspace virtual environment.",
+      "goal": "Verify Calculations.calculate_mean returns the expected mean.",
+      "mode": "sync",
+      "timeout": 30000
+    },
+    "tool_use_id": "call_JxDx9sbY9UrpwM3wcGOlJ7Gv__vscode-1794895178926",
+    "cwd": "<workspace>"
+  }
+}

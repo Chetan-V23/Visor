@@ -120,7 +120,7 @@ export function toDiagramView(model: CodeModel, change: Change | null): Pick<Dia
       const removed = removedMembers.get(symbol.id) ?? []
       const removedIds = new Set(removed.map((method) => method.id))
       return {
-        id: symbol.id, name: symbol.name, file: symbol.file,
+        id: symbol.id, name: symbol.name, file: symbol.file, kind: symbol.kind,
         change: removedClasses.has(symbol.id) ? 'deleted' : addedClasses.has(symbol.id) ? 'added' : modifiedClasses.has(symbol.id) ? 'modified' : 'unchanged',
         methods: [...symbol.methods.filter((method) => !removedIds.has(method.id)), ...removed].map((method) => ({
           id: method.id, name: method.displayName ?? method.name, signature: method.signature, docstring: method.docstring,

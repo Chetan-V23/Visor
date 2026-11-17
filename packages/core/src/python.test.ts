@@ -93,6 +93,30 @@ it('extracts inheritance, nested classes, decorated methods, docstrings and free
   expect(model.functions[0]?.id).toBe('py:shapes.py::build')
 })
 
+it('keeps standalone Python functions visible in a per-file module and tracks body edits', () => {
+  const source = '@decorate\ndef build(value: int) -> int:\n    """Build a value."""\n    return value\n\nasync def load():\n    return 1\n'
+  const before = assembleModel([extractor.extract('helpers.py', source)])
+  const after = assembleModel([extractor.extract('helpers.py', source.replace('return value', 'return value + 1'))])
+  expect(before.classes).toHaveLength(1)
+  expect(before.classes[0]).toMatchObject({ name: 'helpers.py', kind: 'module', file: 'helpers.py' })
+  expect(before.classes[0]?.methods.map((symbol) => symbol.signature)).toEqual(['build(value: int) -> int', 'load()'])
+  expect(before.classes[0]?.methods[0]?.docstring).toBe('Build a value.')
+  expect(diffModels(before, after)).toEqual([expect.objectContaining({ op: 'member.change', after: expect.objectContaining({ name: 'build' }) })])
+})
+
+it('keeps module functions separate from real classes and tracks additions and removals', () => {
+  const source = 'class __module__:\n    def run(self):\n        pass\n\ndef build():\n    return 1\n'
+  const before = assembleModel([extractor.extract('nested/helpers.py', source)])
+  const after = assembleModel([extractor.extract('nested/helpers.py', source + '\ndef extra():\n    return 2\n')])
+  expect(before.classes.map((symbol) => symbol.id)).toEqual(['py:nested/helpers.py::__module__', 'py:nested/helpers.py::<module>'])
+  expect(before.classes[1]?.methods[0]?.id).toBe('py:nested/helpers.py::build')
+  expect(diffModels(before, after)).toEqual([expect.objectContaining({ op: 'member.add', member: expect.objectContaining({ name: 'extra' }) })])
+  expect(diffModels(after, before)).toEqual([expect.objectContaining({ op: 'member.remove', member: expect.objectContaining({ name: 'extra' }) })])
+  const classesOnly = assembleModel([extractor.extract('nested/helpers.py', source.split('\ndef build')[0] ?? '')])
+  expect(diffModels(before, classesOnly)).toEqual([expect.objectContaining({ op: 'node.remove', node: expect.objectContaining({ kind: 'module' }) })])
+  expect(diffModels(before, assembleModel([extractor.extract('nested/helpers.py', '\n' + source)]))).toEqual([])
+})
+
 it('keeps getter/setter identity unique and observes setter body changes', () => {
   const source = 'class Item:\n    @property\n    def value(self):\n        return self._value\n    @value.setter\n    def value(self, value):\n        self._value = value\n'
   const before = extractor.extract('item.py', source)

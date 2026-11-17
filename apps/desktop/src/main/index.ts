@@ -3,6 +3,7 @@ import { dirname, join, resolve } from 'node:path'
 import { createRequire } from 'node:module'
 import { app, BrowserWindow, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { dataFolder, removeOwnedRuntime, writeJsonAtomic } from '@visor/bridge/node'
+import { listPendingHooks, readPendingHook, removePendingHook } from '@visor/bridge/pending'
 import { methodCodeRequestSchema, rawHookSchema } from '@visor/bridge'
 import Parser from 'web-tree-sitter'
 import { contentHash, methodCode, PythonExtractor } from '@visor/core'
@@ -10,7 +11,7 @@ import { openDatabase, SqliteChangeStore } from '@visor/store'
 import { HookMonitor } from './hook-monitor'
 import { startHookServer } from './hook-server'
 import { ChangePipeline } from './change-pipeline'
-import { snapshotPolicy, workspaceRoot } from './workspace'
+import { snapshotPolicy, workspaceRoot } from '@visor/bridge/workspace'
 
 app.setName('Visor')
 const folder = dataFolder()
@@ -89,9 +90,19 @@ if (!app.requestSingleInstanceLock()) {
         if (window && !window.isDestroyed()) window.webContents.send('visor:changes:added', stored.change)
       }
     })
-    server = await startHookServer({ onRaw: (raw) => {
+    for (const pending of await listPendingHooks(folder)) {
+      pipeline.enqueue(pending.raw, pending)
+      await pipeline.flush()
+      if (store.hasEvent(pending.raw.id)) await removePendingHook(folder, pending.raw.id)
+    }
+    server = await startHookServer({ onRaw: async (raw) => {
       monitor?.ingest(raw)
-      pipeline?.enqueue(raw)
+      const pending = readPendingHook(folder, raw.id)
+      pipeline?.enqueue(pending?.raw ?? raw, pending ?? undefined)
+      if (pending) {
+        await pipeline?.flush()
+        if (store.hasEvent(pending.raw.id)) await removePendingHook(folder, pending.raw.id)
+      }
     }, onQueries: (document) => {
       try {
         const root = workspaceRoot(document.workspaceRoot)

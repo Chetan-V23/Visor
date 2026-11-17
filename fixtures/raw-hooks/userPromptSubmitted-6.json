@@ -1,0 +1,14 @@
+{
+  "id": "8c811d04-0cb2-4694-b186-986d43f6a6bc",
+  "source": "copilot",
+  "event": "userPromptSubmitted",
+  "receivedAt": 1794896010169,
+  "payload": {
+    "timestamp": "2026-11-17T06:13:29.638Z",
+    "hook_event_name": "UserPromptSubmit",
+    "session_id": "d5a0e43b-c70b-4c39-8438-d549a0e03324",
+    "transcript_path": "<path>",
+    "prompt": "Calculations shouldnt be a class, make it just a script with methods",
+    "cwd": "<workspace>"
+  }
+}

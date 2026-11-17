@@ -1,0 +1,19 @@
+{
+  "id": "95e054ae-95c7-4bc5-9cab-2161ab2d48a7",
+  "source": "copilot",
+  "event": "postToolUse",
+  "receivedAt": 1794895928716,
+  "payload": {
+    "timestamp": "2026-11-17T06:12:08.162Z",
+    "hook_event_name": "PostToolUse",
+    "session_id": "d5a0e43b-c70b-4c39-8438-d549a0e03324",
+    "transcript_path": "<path>",
+    "tool_name": "list_dir",
+    "tool_input": {
+      "path": "<workspace>"
+    },
+    "tool_response": "",
+    "tool_use_id": "call_7TQIPex6NWYsiuKMG2DH1PCN__vscode-1794895178921",
+    "cwd": "<workspace>"
+  }
+}

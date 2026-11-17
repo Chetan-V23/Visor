@@ -1,0 +1,20 @@
+{
+  "id": "77bd244a-c2d8-4d2e-90dc-370d82cf70eb",
+  "source": "copilot",
+  "event": "preToolUse",
+  "receivedAt": 1794896350212,
+  "payload": {
+    "timestamp": "2026-11-17T06:19:09.311Z",
+    "hook_event_name": "PreToolUse",
+    "session_id": "d5a0e43b-c70b-4c39-8438-d549a0e03324",
+    "transcript_path": "<path>",
+    "tool_name": "read_file",
+    "tool_input": {
+      "filePath": "jpeg_reader.py",
+      "startLine": 1,
+      "endLine": 120
+    },
+    "tool_use_id": "call_OE1RUaYfVjx55QLvlBT8rvJS__vscode-1794895178932",
+    "cwd": "<workspace>"
+  }
+}

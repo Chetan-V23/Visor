@@ -1,0 +1,22 @@
+{
+  "id": "e22a0357-8542-4498-bc38-bc0136a4eb26",
+  "source": "copilot",
+  "event": "postToolUse",
+  "receivedAt": 1794896027174,
+  "payload": {
+    "timestamp": "2026-11-17T06:13:46.655Z",
+    "hook_event_name": "PostToolUse",
+    "session_id": "d5a0e43b-c70b-4c39-8438-d549a0e03324",
+    "transcript_path": "<path>",
+    "tool_name": "get_errors",
+    "tool_input": {
+      "filePaths": [
+        "<workspace>\\calculations.py",
+        "<workspace>\\image_compare.py"
+      ]
+    },
+    "tool_response": "",
+    "tool_use_id": "call_mXHaqLvSpdFsmNi9BjY4Fiej__vscode-1794895178928",
+    "cwd": "<workspace>"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "826bc57e-431b-474b-82b8-56685f4b2436",
+  "source": "copilot",
+  "event": "postToolUse",
+  "receivedAt": 1794895268164,
+  "payload": {
+    "timestamp": "2026-11-17T06:01:07.237Z",
+    "hook_event_name": "PostToolUse",
+    "session_id": "d5a0e43b-c70b-4c39-8438-d549a0e03324",
+    "transcript_path": "<path>",
+    "tool_name": "run_in_terminal",
+    "tool_input": {
+      "command": "Set-Location '<path>'; python -m py_compile image_compare.py",
+      "explanation": "Run Python's bytecode compilation check on image_compare.py only.",
+      "goal": "Verify image_compare.py syntax without executing the script or broader tests.",
+      "mode": "sync",
+      "timeout": 30000
+    },
+    "tool_response": "The user chose to skip the tool call, they want to proceed without running it",
+    "tool_use_id": "call_iAxj4DMEiiETeLw3Cz2gnzIs__vscode-1794895178914",
+    "cwd": "<workspace>"
+  }
+}

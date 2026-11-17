@@ -1,0 +1,20 @@
+{
+  "id": "52f7c6fd-c1c9-4921-8bbc-aee7fb381fb4",
+  "source": "copilot",
+  "event": "postToolUse",
+  "receivedAt": 1794895807036,
+  "payload": {
+    "timestamp": "2026-11-17T06:10:06.423Z",
+    "hook_event_name": "PostToolUse",
+    "session_id": "d5a0e43b-c70b-4c39-8438-d549a0e03324",
+    "transcript_path": "<path>",
+    "tool_name": "apply_patch",
+    "tool_input": {
+      "input": "*** Begin Patch\n*** Update File: <workspace>\\image_compare.py\n@@\n     def show_mean(self) -> None:\n-        for path in (self.IMAGE_A_PATH, self.IMAGE_B_PATH):\n-            image = NpyImageWithMean(path)\n-            print(f\"{image.name} mean={image.calculate_mean():.3f}\")\n+        if self.jpeg_lossless_a is None or self.jpeg_lossless_b is None:\n+            return\n+\n+        for image in (self.jpeg_lossless_a, self.jpeg_lossless_b):\n+            print(f\"{image.name} mean={np.mean(image.data):.3f}\")\n*** End Patch",
+      "explanation": "Use the optional JpegLossless instances to calculate and print their image means, preserving Main's behavior when JPEG inputs are absent."
+    },
+    "tool_response": "",
+    "tool_use_id": "call_RfLDQViusdDO3MrDs1O8Um9k__vscode-1794895178918",
+    "cwd": "<workspace>"
+  }
+}

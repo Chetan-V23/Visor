@@ -1,0 +1,19 @@
+{
+  "id": "ffd5095c-9bf9-428f-a6f5-283d92960a29",
+  "source": "copilot",
+  "event": "preToolUse",
+  "receivedAt": 1794895233297,
+  "payload": {
+    "timestamp": "2026-11-17T06:00:32.537Z",
+    "hook_event_name": "PreToolUse",
+    "session_id": "d5a0e43b-c70b-4c39-8438-d549a0e03324",
+    "transcript_path": "<path>",
+    "tool_name": "apply_patch",
+    "tool_input": {
+      "input": "*** Begin Patch\n*** Update File: <workspace>\\image_compare.py\n@@\n     def __init__(\n         self,\n         jpeg_lossless_a_path: str | Path | None = None,\n         jpeg_lossless_b_path: str | Path | None = None,\n     ):\n         self.jpeg_lossless_a = JpegLossless(jpeg_lossless_a_path) if jpeg_lossless_a_path is not None else None\n         self.jpeg_lossless_b = JpegLossless(jpeg_lossless_b_path) if jpeg_lossless_b_path is not None else None\n \n+    def announce(self) -> None:\n+        print(\"Starting image comparison.\")\n+\n     def main_method(self) -> None:\n         self._compare()\n         self._compare_with_mean()\n@@\n \n def main() -> None:\n-    Main().main_method()\n+    app = Main()\n+    app.announce()\n+    app.main_method()\n*** End Patch",
+      "explanation": "Add a simple public method on Main and call it from the program's main function."
+    },
+    "tool_use_id": "call_6dHJYSeapu9ffcP0qG3yIIZb__vscode-1794895178912",
+    "cwd": "<workspace>"
+  }
+}

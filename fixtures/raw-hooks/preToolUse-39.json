@@ -1,0 +1,19 @@
+{
+  "id": "842600f2-d186-4d53-bfb0-5f1c68a1f865",
+  "source": "copilot",
+  "event": "preToolUse",
+  "receivedAt": 1794895712407,
+  "payload": {
+    "timestamp": "2026-11-17T06:08:31.869Z",
+    "hook_event_name": "PreToolUse",
+    "session_id": "d5a0e43b-c70b-4c39-8438-d549a0e03324",
+    "transcript_path": "<path>",
+    "tool_name": "apply_patch",
+    "tool_input": {
+      "input": "*** Begin Patch\n*** Update File: <workspace>\\image_compare.py\n@@\n-    def announce(self) -> None:\n-        print(\"Starting image comparison.\")\n+    def show_mean(self) -> None:\n+        for path in (self.IMAGE_A_PATH, self.IMAGE_B_PATH):\n+            image = NpyImageWithMean(path)\n+            print(f\"{image.name} mean={image.calculate_mean():.3f}\")\n@@\n def main() -> None:\n     app = Main()\n-    app.announce()\n+    app.show_mean()\n     app.main_method()\n*** End Patch",
+      "explanation": "Change the added Main method to calculate and print the means of both configured NPY images."
+    },
+    "tool_use_id": "call_oGiIy8GaZ3TW54F0LSmWTiDa__vscode-1794895178915",
+    "cwd": "<workspace>"
+  }
+}

@@ -3,6 +3,6 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "exports": { ".": "./src/index.ts", "./node": "./src/node.ts" },
-  "dependencies": { "@visor/protocol": "workspace:*", "zod": "^4.1.12" }
+  "exports": { ".": "./src/index.ts", "./node": "./src/node.ts", "./workspace": "./src/workspace.ts", "./pending": "./src/pending.ts" },
+  "dependencies": { "@visor/protocol": "workspace:*", "ignore": "^7.0.5", "zod": "^4.1.12" }
 }

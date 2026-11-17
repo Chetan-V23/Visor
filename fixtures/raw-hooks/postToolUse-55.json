@@ -1,0 +1,21 @@
+{
+  "id": "3a23448a-7fa9-4f35-a841-7c61935e42d3",
+  "source": "copilot",
+  "event": "postToolUse",
+  "receivedAt": 1794896351616,
+  "payload": {
+    "timestamp": "2026-11-17T06:19:11.015Z",
+    "hook_event_name": "PostToolUse",
+    "session_id": "d5a0e43b-c70b-4c39-8438-d549a0e03324",
+    "transcript_path": "<path>",
+    "tool_name": "read_file",
+    "tool_input": {
+      "filePath": "calculations.py",
+      "startLine": 1,
+      "endLine": 80
+    },
+    "tool_response": "",
+    "tool_use_id": "call_3tO698BU0SHgcvAclEggDL9y__vscode-1794895178933",
+    "cwd": "<workspace>"
+  }
+}

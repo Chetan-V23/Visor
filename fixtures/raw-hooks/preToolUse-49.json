@@ -1,0 +1,19 @@
+{
+  "id": "63686af4-6812-4123-b578-d2189770ac7d",
+  "source": "copilot",
+  "event": "preToolUse",
+  "receivedAt": 1794895962259,
+  "payload": {
+    "timestamp": "2026-11-17T06:12:41.717Z",
+    "hook_event_name": "PreToolUse",
+    "session_id": "d5a0e43b-c70b-4c39-8438-d549a0e03324",
+    "transcript_path": "<path>",
+    "tool_name": "execution_subagent",
+    "tool_input": {
+      "query": "From <workspace>, run a focused runtime check with the workspace virtual environment: .\\.venv\\Scripts\\python.exe -c \"import numpy as np; from calculations import Calculations; result = Calculations.calculate_mean(np.array([2.0, 4.0])); assert result == 3.0, result; print(result)\". Do not edit files or run broader tests. Report the exact result.",
+      "description": "Verify mean helper"
+    },
+    "tool_use_id": "call_sKDV5OcUFrHgnDs6MlsPOsNk__vscode-1794895178925",
+    "cwd": "<workspace>"
+  }
+}

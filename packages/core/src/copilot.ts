@@ -1,7 +1,9 @@
-import { posix, win32 } from 'node:path'
 import { z } from 'zod'
 import { isFileChangeHook, rawHookSchema } from '@visor/bridge'
-import { pathSchema, visorEventSchema, type CodeModel, type HarnessAdapter, type VisorEvent } from '@visor/protocol'
+import { relativePath } from '@visor/bridge/workspace'
+import { visorEventSchema, type CodeModel, type HarnessAdapter, type VisorEvent } from '@visor/protocol'
+
+export { relativePath } from '@visor/bridge/workspace'
 
 export type Normalization = { ok: true; events: VisorEvent[] } | { ok: false; error: string }
 export interface AdapterContext { workspaceRoot: string; workspaceId: string; seq: number }
@@ -24,19 +26,6 @@ const snippetSchema = z.object({
   text: z.string().optional(), code: z.string().optional(), oldString: z.string().optional(), newString: z.string().optional(),
   old_string: z.string().optional(), new_string: z.string().optional()
 }).strip()
-
-export function relativePath(candidate: string, workspaceRoot: string): string | null {
-  if (candidate.split(/[\\/]/).includes('..') || /[\u0000-\u001f]/.test(candidate)) return null
-  const paths = win32.isAbsolute(workspaceRoot) && !workspaceRoot.startsWith('/') ? win32 : posix
-  const root = workspaceRoot.replace(/\\/g, '/')
-  const file = candidate.replace(/\\/g, '/')
-  if (paths === posix && win32.isAbsolute(file) && !posix.isAbsolute(file)) return null
-  const resolved = paths.isAbsolute(file) || (!paths.isAbsolute(root) && file.startsWith(`${root}/`))
-    ? paths.resolve(file) : paths.resolve(root, file)
-  const relative = paths.relative(paths.resolve(root), resolved).replace(/\\/g, '/')
-  const parsed = pathSchema.safeParse(relative)
-  return parsed.success ? parsed.data : null
-}
 
 export function mentionedClassIds(value: unknown, context: { workspaceRoot: string; files: string[]; models: CodeModel[] }): string[] {
   const raw = rawHookSchema.safeParse(value)

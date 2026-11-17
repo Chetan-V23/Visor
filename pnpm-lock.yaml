@@ -154,6 +154,9 @@ importers:
       '@visor/bridge':
         specifier: workspace:*
         version: link:../../packages/bridge
+      '@visor/core':
+        specifier: workspace:*
+        version: link:../../packages/core
     devDependencies:
       esbuild:
         specifier: ^0.25.12
@@ -164,6 +167,9 @@ importers:
       '@visor/protocol':
         specifier: workspace:*
         version: link:../protocol
+      ignore:
+        specifier: ^7.0.5
+        version: 7.0.14
       zod:
         specifier: ^4.1.12
         version: 4.6.7

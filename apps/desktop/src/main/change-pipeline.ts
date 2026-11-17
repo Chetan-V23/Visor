@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import { basename } from 'node:path'
 import type { RawHook } from '@visor/bridge'
+import type { PendingHook } from '@visor/bridge/pending'
 import { assembleModel, contentHash, CopilotAdapter, createChange, diffModels, mentionedClassIds } from '@visor/core'
 import { changeSchema, type Change, type CodeModel, type LanguageExtractor, type VisorEvent } from '@visor/protocol'
 import type { ChangeStore, SnapshotFile, StoredChange } from '@visor/store'
-import { readSource, readSourceSync, scanPython, snapshotPolicy, workspaceRoot } from './workspace'
+import { readSource, readSourceSync, scanPython, snapshotPolicy, workspaceRoot } from '@visor/bridge/workspace'
 
 export class ChangePipeline {
   private queue: Promise<void> = Promise.resolve()
@@ -16,9 +17,9 @@ export class ChangePipeline {
     onChangeAdded: (change: StoredChange) => void
   }) {}
 
-  enqueue(raw: RawHook): void {
+  enqueue(raw: RawHook, pending?: Pick<PendingHook, 'captured' | 'baseline'>): void {
     if (this.options.store.hasEvent(raw.id)) return
-    let captured: SnapshotFile[] | undefined
+    let captured: SnapshotFile[] | undefined = pending?.captured
     try {
       const root = typeof raw.payload.cwd === 'string' ? raw.payload.cwd : ''
       const result = new CopilotAdapter({ workspaceRoot: root, workspaceId: contentHash(root), seq: 0 }).normalize(raw)
@@ -27,14 +28,15 @@ export class ChangePipeline {
         if (event.payload.files.length > 64) throw new Error('Tool snapshot exceeds the file limit.')
         const canonicalRoot = workspaceRoot(root)
         const allowed = snapshotPolicy(canonicalRoot)
-        captured = event.payload.files.filter((path) => allowed(path)).map((path) => ({ path, text: readSourceSync(canonicalRoot, path) }))
+        captured = captured?.filter((file) => event.payload.files.includes(file.path) && allowed(file.path))
+          ?? event.payload.files.filter((path) => allowed(path)).map((path) => ({ path, text: readSourceSync(canonicalRoot, path) }))
         if (captured.reduce((bytes, file) => bytes + Buffer.byteLength(file.text ?? '', 'utf8'), 0) > 16 * 1024 * 1024) throw new Error('Tool snapshot exceeds the byte limit.')
       }
     } catch {
       this.options.onNormalized([], 'Tool snapshot failed. Check workspace access and source-size limits.')
       return
     }
-    this.queue = this.queue.then(() => this.process(raw, captured)).catch(() => {
+    this.queue = this.queue.then(() => this.process(raw, captured, pending?.baseline)).catch(() => {
       this.options.onNormalized([], 'Change processing failed. Check workspace access and the Visor data folder.')
     })
   }
@@ -69,7 +71,7 @@ export class ChangePipeline {
     }), this.options.store.semanticDocuments(sessionId))
   }
 
-  private async process(raw: RawHook, captured?: SnapshotFile[]): Promise<void> {
+  private async process(raw: RawHook, captured?: SnapshotFile[], frozenBaseline?: SnapshotFile[]): Promise<void> {
     const store = this.options.store
     if (store.hasEvent(raw.id)) return
     const requestedRoot = typeof raw.payload.cwd === 'string' ? raw.payload.cwd : ''
@@ -87,7 +89,7 @@ export class ChangePipeline {
     let baseline: StoredChange | undefined
     let baselineFiles: SnapshotFile[] | undefined
     if (!latest) {
-      baselineFiles = await scanPython(root)
+      baselineFiles = frozenBaseline ?? await scanPython(root)
       if (event.kind === 'edit.pending' || event.kind === 'edit.applied') {
         for (const path of affected) {
           const snapshot = captured?.find((file) => file.path === path)

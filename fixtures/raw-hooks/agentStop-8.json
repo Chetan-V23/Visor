@@ -1,0 +1,14 @@
+{
+  "id": "038cb2c8-ba00-4f13-a5d7-94829db6fb32",
+  "source": "copilot",
+  "event": "agentStop",
+  "receivedAt": 1794895822242,
+  "payload": {
+    "timestamp": "2026-11-17T06:10:21.644Z",
+    "hook_event_name": "Stop",
+    "session_id": "d5a0e43b-c70b-4c39-8438-d549a0e03324",
+    "transcript_path": "<path>",
+    "stop_hook_active": false,
+    "cwd": "<workspace>"
+  }
+}

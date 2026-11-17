@@ -1,0 +1,14 @@
+{
+  "id": "7059de98-cb2f-48c7-a7b7-f8352934ad23",
+  "source": "copilot",
+  "event": "userPromptSubmitted",
+  "receivedAt": 1794895769960,
+  "payload": {
+    "timestamp": "2026-11-17T06:09:29.402Z",
+    "hook_event_name": "UserPromptSubmit",
+    "session_id": "d5a0e43b-c70b-4c39-8438-d549a0e03324",
+    "transcript_path": "<path>",
+    "prompt": "actually make it call jpeglossless class  instead",
+    "cwd": "<workspace>"
+  }
+}

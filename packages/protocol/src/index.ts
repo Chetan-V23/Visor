@@ -3,7 +3,7 @@ import { z } from 'zod'
 export const versionSchema = z.literal(1)
 export const languageSchema = z.enum(['py', 'cpp', 'cs'])
 export const pathSchema = z.string().min(1).regex(/^(?!\/)(?!.*\\)(?!.*\/\/)(?!.*\/$)(?!.*(?:^|\/)\.\.?(?:\/|$))[^:\u0000-\u001f]+$/)
-export const symbolIdSchema = z.string().regex(/^(py|cpp|cs):[^:\\]+::[A-Za-z_][\w.]*$/).refine((id) => {
+export const symbolIdSchema = z.string().regex(/^(py|cpp|cs):[^:\\]+::(?:[A-Za-z_][\w.]*|<module>)$/).refine((id) => {
   return pathSchema.safeParse(id.slice(id.indexOf(':') + 1, id.indexOf('::'))).success
 }, 'Symbol IDs must contain a workspace-relative path.')
 export const hashSchema = z.string().regex(/^[a-f0-9]{64}$/)
@@ -29,15 +29,20 @@ export const fieldSymbolSchema = z.object({
 export const memberSymbolSchema = z.discriminatedUnion('kind', [methodSymbolSchema, fieldSymbolSchema])
 export const classSymbolSchema = z.object({
   id: symbolIdSchema, name: identitySchema, file: pathSchema, range: rangeSchema.nullable(),
+  kind: z.enum(['class', 'module']).optional(),
   bases: z.array(identitySchema), methods: z.array(methodSymbolSchema), fields: z.array(fieldSymbolSchema)
 }).strip().superRefine((symbol, context) => {
   if (symbol.id.slice(symbol.id.indexOf(':') + 1, symbol.id.indexOf('::')) !== symbol.file) {
     context.addIssue({ code: 'custom', path: ['file'], message: 'Class file must match its symbol ID.' })
   }
   const seen = new Set<string>()
+  const owner = symbol.kind === 'module' ? symbol.id.slice(0, symbol.id.indexOf('::') + 2) : `${symbol.id}.`
+  if ((symbol.kind === 'module') !== symbol.id.endsWith('::<module>')) {
+    context.addIssue({ code: 'custom', path: ['id'], message: 'Module nodes must use the reserved module ID.' })
+  }
   for (const [collection, members] of Object.entries({ methods: symbol.methods, fields: symbol.fields })) {
     for (const [index, member] of members.entries()) {
-      if (member.id !== `${symbol.id}.${member.name}` || seen.has(member.id)) {
+      if (member.id !== `${owner}${member.name}` || seen.has(member.id)) {
         context.addIssue({ code: 'custom', path: [collection, index, 'id'], message: 'Member IDs must be unique and owned by their class.' })
       }
       seen.add(member.id)

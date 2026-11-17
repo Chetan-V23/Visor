@@ -8,6 +8,8 @@ import {
   type RawHook, type Runtime
 } from '@visor/bridge'
 import { dataFolder, readRuntime } from '@visor/bridge/node'
+import { savePendingHook } from '@visor/bridge/pending'
+import { CopilotAdapter } from '@visor/core'
 import { quotePowerShell, quoteWindowsArgument } from './windows'
 
 async function healthyRuntime(folder: string, timeout = 500): Promise<Runtime | null> {
@@ -96,6 +98,12 @@ export async function forwardRaw({ event, input, folder = dataFolder() }: {
   let runtime = await healthyRuntime(folder)
   if (!runtime) {
     if (!isFileChangeHook(parsed.data)) return
+    const root = typeof parsed.data.payload.cwd === 'string' ? parsed.data.payload.cwd : ''
+    const normalized = new CopilotAdapter({ workspaceRoot: root, workspaceId: root, seq: 0 }).normalize(parsed.data)
+    const edit = normalized.ok ? normalized.events[0] : undefined
+    if (edit?.kind === 'edit.pending' || edit?.kind === 'edit.applied') {
+      try { await savePendingHook(folder, parsed.data, edit.payload.files) } catch {}
+    }
     if (!await launchApp(folder)) return
     const deadline = Date.now() + 3000
     while (Date.now() < deadline) {

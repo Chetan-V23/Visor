@@ -1,0 +1,14 @@
+{
+  "id": "a4755fc3-fbe9-4f35-96e7-21e6513a722f",
+  "source": "copilot",
+  "event": "userPromptSubmitted",
+  "receivedAt": 1794896344869,
+  "payload": {
+    "timestamp": "2026-11-17T06:19:04.160Z",
+    "hook_event_name": "UserPromptSubmit",
+    "session_id": "d5a0e43b-c70b-4c39-8438-d549a0e03324",
+    "transcript_path": "<path>",
+    "prompt": "within jpegLossless, call the mean method in calculations.py. Create a new method for it called jpegmean",
+    "cwd": "<workspace>"
+  }
+}

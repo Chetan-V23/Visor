@@ -157,11 +157,15 @@ function Diagram({ view }: { view: DiagramView }) {
 }
 
 export function DiagramCanvas({ view }: { view: DiagramView }) {
+  const modules = view.classes.filter((symbol) => symbol.kind === 'module').length
+  const classes = view.classes.length - modules
+  const title = modules ? 'Code diagram' : 'Class diagram'
+  const count = modules ? `${classes ? `${classes} classes, ` : ''}${modules} ${modules === 1 ? 'module' : 'modules'}` : `${classes} classes`
   return (
-    <section className="diagram-panel" aria-label="Class diagram">
+    <section className="diagram-panel" aria-label={title}>
       <div className="diagram-heading">
-        <div><Workflow size={17} /><span>Class diagram</span></div>
-        <span>{view.classes.length} classes <span aria-hidden="true">/</span> {view.edges.length} relationships</span>
+        <div><Workflow size={17} /><span>{title}</span></div>
+        <span>{count} <span aria-hidden="true">/</span> {view.edges.length} relationships</span>
       </div>
       <div className="diagram-canvas">
         {view.classes.length === 0 && <div className="diagram-empty"><Workflow size={28} /><span>No classes</span></div>}

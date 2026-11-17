@@ -1,0 +1,20 @@
+{
+  "id": "ce2f02d7-3292-4307-8186-77474f5f8584",
+  "source": "copilot",
+  "event": "postToolUse",
+  "receivedAt": 1794895929908,
+  "payload": {
+    "timestamp": "2026-11-17T06:12:09.361Z",
+    "hook_event_name": "PostToolUse",
+    "session_id": "d5a0e43b-c70b-4c39-8438-d549a0e03324",
+    "transcript_path": "<path>",
+    "tool_name": "memory",
+    "tool_input": {
+      "command": "view",
+      "path": "<path>"
+    },
+    "tool_response": "No memories found.",
+    "tool_use_id": "call_HmsRdMwiLtnVVDQ9cT9QtFz6__vscode-1794895178922",
+    "cwd": "<workspace>"
+  }
+}

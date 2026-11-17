@@ -1,0 +1,14 @@
+{
+  "id": "57ea96c2-1f25-4f31-9a50-02a51f8cc1db",
+  "source": "copilot",
+  "event": "userPromptSubmitted",
+  "receivedAt": 1794896076142,
+  "payload": {
+    "timestamp": "2026-11-17T06:14:35.607Z",
+    "hook_event_name": "UserPromptSubmit",
+    "session_id": "d5a0e43b-c70b-4c39-8438-d549a0e03324",
+    "transcript_path": "<path>",
+    "prompt": "from show_mean, call another class's method. any class",
+    "cwd": "<workspace>"
+  }
+}

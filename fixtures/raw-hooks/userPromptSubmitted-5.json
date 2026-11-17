@@ -1,0 +1,14 @@
+{
+  "id": "c517a354-ee11-4341-8e31-6668d0550300",
+  "source": "copilot",
+  "event": "userPromptSubmitted",
+  "receivedAt": 1794895919159,
+  "payload": {
+    "timestamp": "2026-11-17T06:11:58.592Z",
+    "hook_event_name": "UserPromptSubmit",
+    "session_id": "d5a0e43b-c70b-4c39-8438-d549a0e03324",
+    "transcript_path": "<path>",
+    "prompt": "create a helper script called calculations.py, have a public method there that calculates the mean, then call it from the show_mean method",
+    "cwd": "<workspace>"
+  }
+}

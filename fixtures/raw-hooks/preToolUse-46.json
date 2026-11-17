@@ -1,0 +1,19 @@
+{
+  "id": "b6d63690-5c3b-4f9c-94bc-b48278948721",
+  "source": "copilot",
+  "event": "preToolUse",
+  "receivedAt": 1794895928756,
+  "payload": {
+    "timestamp": "2026-11-17T06:12:08.210Z",
+    "hook_event_name": "PreToolUse",
+    "session_id": "d5a0e43b-c70b-4c39-8438-d549a0e03324",
+    "transcript_path": "<path>",
+    "tool_name": "memory",
+    "tool_input": {
+      "command": "view",
+      "path": "<path>"
+    },
+    "tool_use_id": "call_HmsRdMwiLtnVVDQ9cT9QtFz6__vscode-1794895178922",
+    "cwd": "<workspace>"
+  }
+}

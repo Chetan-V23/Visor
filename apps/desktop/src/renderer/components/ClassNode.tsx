@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, u
 import { createPortal } from 'react-dom'
 import { methodCodeSchema, type MethodCode } from '@visor/bridge'
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
-import { Box, Minus, Plus } from 'lucide-react'
+import { Box, FileCode, Minus, Plus } from 'lucide-react'
 import type { DiagramClass, DiagramMethod } from '../diagram/types'
 
 export type ClassFlowNode = Node<{ symbol: DiagramClass }, 'class'>
@@ -81,7 +81,7 @@ export function MethodTooltipProvider({ children, changeId }: { children: ReactN
       {children}
       {active && createPortal(
         <div ref={tooltip} id={tooltipId} role="tooltip" tabIndex={0} className="method-tooltip" style={{ left: active.anchor.left, top: active.anchor.bottom + 8 }} onMouseEnter={keepOpen} onMouseLeave={() => hideSoon()} onFocus={keepOpen} onBlur={() => hideSoon()} onKeyDown={(event) => { if (event.key === 'Escape') close() }}>
-          <span className="tooltip-eyebrow">{code.kind === 'ready' ? code.code.file : 'Python method'}</span>
+          <span className="tooltip-eyebrow">{code.kind === 'ready' ? code.code.file : 'Python function'}</span>
           {code.kind === 'ready' ? <pre className="method-code"><code>{code.code.lines.map((line, index) =>
             <span key={index} className={`code-line code-${line.kind}`}><span className="code-marker" aria-hidden="true">{line.kind === 'added' ? '+' : line.kind === 'deleted' ? '-' : ' '}</span>{line.text}</span>
           )}</code></pre> : <>
@@ -121,18 +121,19 @@ function MethodRow({ method }: { method: DiagramMethod }) {
 
 export function ClassNode({ data, selected }: NodeProps<ClassFlowNode>) {
   const { symbol } = data
+  const module = symbol.kind === 'module'
   return (
-    <article className={`class-node class-${symbol.change ?? 'unchanged'} ${selected ? 'class-selected' : ''}`} data-testid="class-node" data-change={symbol.change ?? 'unchanged'} aria-label={`${symbol.name} class`}>
+    <article className={`class-node class-${symbol.change ?? 'unchanged'} ${selected ? 'class-selected' : ''}`} data-testid="class-node" data-change={symbol.change ?? 'unchanged'} aria-label={`${symbol.name} ${module ? 'module' : 'class'}`}>
       <Handle type="target" position={Position.Left} />
       <header className="class-heading">
-        <span className="class-kind"><Box size={13} strokeWidth={1.7} /> CLASS <span>PY</span></span>
+        <span className="class-kind">{module ? <FileCode size={13} strokeWidth={1.7} /> : <Box size={13} strokeWidth={1.7} />} {module ? 'MODULE' : 'CLASS'} <span>PY</span></span>
         <h2>{symbol.name}</h2>
         <span className="class-file">{symbol.file}</span>
       </header>
       <div className="class-methods">
         {symbol.methods.map((method) => <MethodRow key={method.id} method={method} />)}
       </div>
-      <footer className="class-footer">{symbol.methods.length} methods</footer>
+      <footer className="class-footer">{symbol.methods.length} {module ? (symbol.methods.length === 1 ? 'function' : 'functions') : 'methods'}</footer>
       <Handle type="source" position={Position.Right} />
     </article>
   )

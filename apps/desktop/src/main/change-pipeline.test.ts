@@ -6,11 +6,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, expect, it } from 'vitest'
 import type { RawHook } from '@visor/bridge'
+import { listPendingHooks, readPendingHook, removePendingHook, savePendingHook } from '@visor/bridge/pending'
 import { openDatabase, SqliteChangeStore, type Migration, type StoredChange } from '@visor/store'
 import { type VisorEvent } from '@visor/protocol'
 import { pythonParser } from '../../../cli/src/fixtures'
 import { ChangePipeline } from './change-pipeline'
-import { readSource } from './workspace'
+import { readSource } from '@visor/bridge/workspace'
 
 const require = createRequire(import.meta.url)
 const migrations: Migration[] = await Promise.all(['001_initial', '002_indexes', '003_semantic'].map(async (name, index) => ({ version: index + 1, sql: await readFile(require.resolve(`@visor/store/migrations/${name}.sql`), 'utf8') })))
@@ -68,6 +69,97 @@ it('recovers a post-only session as a late current-state baseline', async () => 
   expect(state.changes).toHaveLength(1)
   expect(state.changes[0]?.change).toMatchObject({ seq: 0, cause: { observedAt: 'after-first-edit' } })
   expect(state.store.listSessions()[0]?.startObserved).toBe(false)
+})
+
+it('replays cold snapshots as the pre-edit baseline and first change, not the later working tree', async () => {
+  const state = await setup()
+  const before = '\ufeffclass Before:\r\n    pass\r\n'
+  const after = 'class After:\n    pass\n'
+  const context = 'class ContextBefore:\n    pass\n'
+  await writeFile(join(state.root, 'a.py'), before)
+  await writeFile(join(state.root, 'context.py'), context)
+  const input = { tool_name: 'edit_file', tool_use_id: 'cold-call', tool_input: { filePath: 'a.py' } }
+  const pre = state.raw('preToolUse', input)
+  await savePendingHook(state.folder, pre, ['a.py'])
+  await writeFile(join(state.root, 'a.py'), after)
+  const post = { ...state.raw('postToolUse', input), receivedAt: pre.receivedAt + 1 }
+  await savePendingHook(state.folder, post, ['a.py'])
+  await writeFile(join(state.root, 'a.py'), 'class Later:\n    pass\n')
+  await writeFile(join(state.root, 'context.py'), 'class ContextLater:\n    pass\n')
+  for (const pending of await listPendingHooks(state.folder)) {
+    state.pipeline.enqueue(pending.raw, pending)
+    await state.pipeline.flush()
+    expect(state.store.hasEvent(pending.raw.id)).toBe(true)
+    await removePendingHook(state.folder, pending.raw.id)
+    state.pipeline.enqueue(pending.raw, pending)
+  }
+  await state.pipeline.flush()
+  expect(state.errors).toEqual([])
+  expect(state.changes.map((record) => record.change.seq)).toEqual([0, 1])
+  expect(state.changes[0]?.change.cause).toMatchObject({ observedAt: 'before-first-edit' })
+  expect(state.store.sourceAtChange('test', 0, 'a.py')).toBe(before)
+  expect(state.store.sourceAtChange('test', 1, 'a.py')).toBe(after)
+  expect(state.store.sourceAtChange('test', 0, 'context.py')).toBe(context)
+  expect(state.changes[0]?.model.classes.map((symbol) => symbol.name)).toEqual(['Before', 'ContextBefore'])
+  expect(state.changes[1]?.model.classes.map((symbol) => symbol.name)).toEqual(['After', 'ContextBefore'])
+  expect(await listPendingHooks(state.folder)).toEqual([])
+})
+
+it('preserves null pre-edit source for a cold-created file', async () => {
+  const state = await setup()
+  const input = { tool_name: 'create_file', tool_use_id: 'cold-create', tool_input: { filePath: 'created.py' } }
+  const pre = state.raw('preToolUse', input)
+  await savePendingHook(state.folder, pre, ['created.py'])
+  await writeFile(join(state.root, 'created.py'), 'class Created:\n    pass\n')
+  const pending = readPendingHook(state.folder, pre.id)
+  expect(pending?.captured).toEqual([{ path: 'created.py', text: null }])
+  if (!pending) throw new Error('Missing cold-created snapshot.')
+  state.pipeline.enqueue(pre, pending)
+  state.pipeline.enqueue(state.raw('postToolUse', input))
+  await state.pipeline.flush()
+  expect(state.errors).toEqual([])
+  expect(state.store.sourceAtChange('test', 0, 'created.py')).toBeNull()
+  expect(state.store.sourceAtChange('test', 1, 'created.py')).toBe('class Created:\n    pass\n')
+  expect(state.changes[1]?.change.files[0]?.beforeHash).toBeNull()
+})
+
+it('uses the workspace security policy for cold handoffs and rejects excessive file counts before reading', async () => {
+  const state = await setup()
+  const secret = 'class Private:\n    pass\n'
+  await writeFile(join(state.root, '.gitignore'), 'private.py\n')
+  await writeFile(join(state.root, 'private.py'), secret)
+  await writeFile(join(state.root, '.env'), 'TOKEN=private\n')
+  const pre = state.raw('preToolUse', { tool_name: 'edit_file', tool_input: { filePath: 'a.py' } })
+  await savePendingHook(state.folder, pre, ['a.py', 'private.py', '.env'])
+  const pending = readPendingHook(state.folder, pre.id)
+  expect(pending?.captured.map((file) => file.path)).toEqual(['a.py'])
+  expect(pending?.baseline?.map((file) => file.path)).toEqual(['a.py'])
+  const encoded = await readFile(join(state.folder, 'pending-hooks', `${pre.id}.json`), 'utf8')
+  expect(encoded).not.toContain('class Private')
+  expect(encoded).not.toContain('TOKEN=private')
+  await expect(savePendingHook(state.folder, pre, ['../outside.py'])).rejects.toThrow('inside the workspace')
+  await expect(savePendingHook(state.folder, pre, Array<string>(65).fill('missing.py'))).rejects.toThrow('file limit')
+  const outside = join(state.folder, 'outside')
+  await mkdir(outside)
+  await writeFile(join(outside, 'secret.py'), secret)
+  await symlink(outside, join(state.root, 'linked'), process.platform === 'win32' ? 'junction' : 'dir')
+  await expect(savePendingHook(state.folder, pre, ['linked/secret.py'])).rejects.toThrow('symbolic links')
+  await writeFile(join(state.folder, 'pending-hooks', `${pre.id}.json`), '{invalid')
+  expect(readPendingHook(state.folder, pre.id)).toBeNull()
+  expect(readPendingHook(state.folder, '../runtime')).toBeNull()
+})
+
+it('rejects cold handoffs that exceed source byte limits without persisting a partial snapshot', async () => {
+  const state = await setup()
+  const pre = state.raw('preToolUse', { tool_name: 'edit_file', tool_input: { filePath: 'a.py' } })
+  await writeFile(join(state.root, 'a.py'), 'x'.repeat(2 * 1024 * 1024 + 1))
+  await expect(savePendingHook(state.folder, pre, ['a.py'])).rejects.toThrow('2 MiB')
+  await rm(join(state.root, 'a.py'))
+  const paths = Array.from({ length: 9 }, (_, index) => `${index}.py`)
+  for (const path of paths) await writeFile(join(state.root, path), 'x'.repeat(2 * 1024 * 1024))
+  await expect(savePendingHook(state.folder, pre, [])).rejects.toThrow('byte limit')
+  await expect(savePendingHook(state.folder, pre, paths)).rejects.toThrow('byte limit')
+  expect(await listPendingHooks(state.folder)).toEqual([])
 })
 
 it('preserves pre-hook class mentions in SQLite when a new pipeline receives a snippet-free post', async () => {
