@@ -1,0 +1,14 @@
+{
+  "id": "e7e25993-add7-4a9e-90ce-4a78f5b5a461",
+  "source": "copilot",
+  "event": "userPromptSubmitted",
+  "receivedAt": 1794907941784,
+  "payload": {
+    "timestamp": "2026-11-17T09:32:21.204Z",
+    "hook_event_name": "UserPromptSubmit",
+    "session_id": "f654803f-adfe-44ea-84a7-41461cfe62df",
+    "transcript_path": "<path>",
+    "prompt": "create a method in main that calls this class",
+    "cwd": "<workspace>"
+  }
+}

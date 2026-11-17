@@ -1,0 +1,21 @@
+{
+  "id": "3d9edd7d-9447-454b-ac2a-5491daac9008",
+  "source": "copilot",
+  "event": "preToolUse",
+  "receivedAt": 1794907904928,
+  "payload": {
+    "timestamp": "2026-11-17T09:31:44.382Z",
+    "hook_event_name": "PreToolUse",
+    "session_id": "f654803f-adfe-44ea-84a7-41461cfe62df",
+    "transcript_path": "<path>",
+    "tool_name": "run_in_terminal",
+    "tool_input": {
+      "command": "@'\nfrom pathlib import Path\nfrom tempfile import TemporaryDirectory\nimport numpy as np\nfrom image_compare import NpyImage, NpyImageCropper\n\nwith TemporaryDirectory() as directory:\n    for shape in ((6, 8), (5, 7), (6, 8, 3), (1, 1)):\n        original = np.arange(np.prod(shape)).reshape(shape)\n        path = Path(directory) / 'image.npy'\n        np.save(path, original)\n        cropped = NpyImageCropper(path)\n        expected = original[:shape[0] // 2, :shape[1] // 2]\n        assert isinstance(cropped, NpyImage)\n        np.testing.assert_array_equal(cropped.data, expected)\n        assert cropped.shape == expected.shape\n        assert cropped.name == path.name\n        np.testing.assert_array_equal(np.load(path), original)\n        print(f'PASS: {shape} -> {cropped.shape}')\n'@ | & '<workspace>/.venv/Scripts/python.exe' -B -",
+      "explanation": "Check crop dimensions and pixel values for even, odd, color, and single-pixel images, and verify source files remain unchanged.",
+      "goal": "Validate the new image cropper",
+      "mode": "sync"
+    },
+    "tool_use_id": "call_wB7MauwwuiK6agBf45B1kUec__vscode-1794907799106",
+    "cwd": "<workspace>"
+  }
+}

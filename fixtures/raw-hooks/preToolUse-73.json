@@ -1,0 +1,21 @@
+{
+  "id": "edf16dcd-8e29-465e-9178-f614b8e08876",
+  "source": "copilot",
+  "event": "preToolUse",
+  "receivedAt": 1794908180669,
+  "payload": {
+    "timestamp": "2026-11-17T09:36:20.084Z",
+    "hook_event_name": "PreToolUse",
+    "session_id": "f654803f-adfe-44ea-84a7-41461cfe62df",
+    "transcript_path": "<path>",
+    "tool_name": "vscode_renameSymbol",
+    "tool_input": {
+      "symbol": "NpyImageCropper",
+      "newName": "ImageCropAndRevertor",
+      "filePath": "image_compare.py",
+      "lineContent": "class NpyImageCropper(NpyImage):"
+    },
+    "tool_use_id": "call_cudP8owYRbfq56KdsJU09W03__vscode-1794907799117",
+    "cwd": "<workspace>"
+  }
+}

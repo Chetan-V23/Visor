@@ -1,0 +1,20 @@
+{
+  "id": "3e4b1bfb-8ef7-4b3c-98b6-bead65693516",
+  "source": "copilot",
+  "event": "postToolUse",
+  "receivedAt": 1794908033520,
+  "payload": {
+    "timestamp": "2026-11-17T09:33:52.958Z",
+    "hook_event_name": "PostToolUse",
+    "session_id": "f654803f-adfe-44ea-84a7-41461cfe62df",
+    "transcript_path": "<path>",
+    "tool_name": "apply_patch",
+    "tool_input": {
+      "input": "*** Begin Patch\n*** Update File: <workspace>\\image_compare.py\n@@\n class NpyImageCropper(NpyImage):\n     def __init__(self, path: str | Path):\n         super().__init__(path)\n+        self._original_data = self.data.copy()\n         height, width = self.data.shape[:2]\n         self.data = self.data[: height // 2, : width // 2].copy()\n \n+    def revert(self) -> None:\n+        self.data = self._original_data.copy()\n+\n \n class JpegImageFlipper:\n*** End Patch",
+      "explanation": "Preserve original image pixels before cropping and add revert() to restore an independent copy."
+    },
+    "tool_response": "",
+    "tool_use_id": "call_saBDjDi0fEaF6Dhn3KRF6AyV__vscode-1794907799112",
+    "cwd": "<workspace>"
+  }
+}

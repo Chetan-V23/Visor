@@ -1,11 +1,20 @@
 import type { Change, CodeModel, MethodSymbol, Relation } from '@visor/protocol'
 import type { DiagramChange, DiagramEdge, DiagramView } from './types'
 
+export interface DiagramHistoryEntry {
+  change: Change
+  classIds: string[]
+}
+
 function relationId(relation: Relation): string {
   return `${relation.kind}:${relation.from}->${relation.to}:${relation.label ?? ''}`
 }
 
-export function toDiagramView(model: CodeModel, change: Change | null): Pick<DiagramView, 'classes' | 'edges'> {
+export function toDiagramView(model: CodeModel, change: Change | null, history?: DiagramHistoryEntry[]): Pick<DiagramView, 'classes' | 'edges'> {
+  return change && history ? toHistoryView(model, change, history) : projectDiagramView(model, change)
+}
+
+function projectDiagramView(model: CodeModel, change: Change | null, scope?: ReadonlySet<string>): Pick<DiagramView, 'classes' | 'edges'> {
   const classes = new Map(model.classes.map((symbol) => [symbol.id, structuredClone(symbol)]))
   const addedClasses = new Set<string>()
   const removedClasses = new Set<string>()
@@ -101,7 +110,7 @@ export function toDiagramView(model: CodeModel, change: Change | null): Pick<Dia
     }
   }
   const touchedClasses = new Set([...addedClasses, ...removedClasses, ...modifiedClasses])
-  const visibleClasses = change && change.cause.kind !== 'baseline'
+  let visibleClasses = change && change.cause.kind !== 'baseline'
     ? new Set(touchedClasses)
     : new Set(classes.keys())
   if (change?.cause.kind === 'tool') {
@@ -115,6 +124,7 @@ export function toDiagramView(model: CodeModel, change: Change | null): Pick<Dia
     const to = owners.get(delta.relation.to)
     if (from && to && touchedClasses.has(from)) visibleClasses.add(to)
   }
+  if (scope) visibleClasses = new Set(scope)
   return {
     classes: [...classes.values()].filter((symbol) => visibleClasses.has(symbol.id)).map((symbol) => {
       const removed = removedMembers.get(symbol.id) ?? []
@@ -135,6 +145,33 @@ export function toDiagramView(model: CodeModel, change: Change | null): Pick<Dia
       return from && to && visibleClasses.has(from) && visibleClasses.has(to) ? [{ id, from, to, label: entry.relation.label ?? entry.relation.kind, kind: entry.relation.kind, certainty: entry.relation.certainty, evidence: entry.relation.evidence, change: entry.change }] : []
     })
   }
+}
+
+function toHistoryView(model: CodeModel, change: Change, history: DiagramHistoryEntry[]): Pick<DiagramView, 'classes' | 'edges'> {
+  const edits = history.filter((entry) => entry.change.cause.kind !== 'baseline').sort((left, right) => left.change.seq - right.change.seq)
+  if (edits.length === 0) return projectDiagramView(model, change)
+  const included = change.cause.kind === 'baseline' ? edits.slice(0, 1) : edits.filter((entry) => entry.change.seq <= change.seq)
+  const deleted = new Map<string, { node: CodeModel['classes'][number]; changeId: string }>()
+  if (change.cause.kind !== 'baseline') {
+    for (const entry of included) {
+      for (const delta of entry.change.delta) {
+        if (delta.op === 'node.remove') deleted.set(delta.node.id, { node: delta.node, changeId: entry.change.id })
+        else if (delta.op === 'node.add') deleted.delete(delta.node.id)
+      }
+    }
+  }
+  for (const symbol of model.classes) deleted.delete(symbol.id)
+  const augmentedModel = { ...model, classes: [...model.classes, ...[...deleted.values()].map((entry) => entry.node)] }
+  const visible = new Set(included.flatMap((entry) => entry.classIds))
+  const view = projectDiagramView(augmentedModel, {
+    ...change,
+    delta: [...change.delta, ...[...deleted.values()].map((entry) => ({ v: 1, op: 'node.remove', node: entry.node } as const))]
+  }, visible)
+  for (const symbol of view.classes) {
+    const deletion = deleted.get(symbol.id)
+    if (deletion) for (const method of symbol.methods) method.changeId = deletion.changeId
+  }
+  return view
 }
 
 export function toDiagramChange(change: Change, model: CodeModel): DiagramChange {

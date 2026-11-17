@@ -140,6 +140,30 @@ describe('Step 1 diagram source', () => {
     expect(view.classes[0]?.methods.every((method) => method.change === 'deleted')).toBe(true)
   })
 
+  it('scopes the baseline to the first edit and accumulates classes and deletions only through the selected change', () => {
+    const template = documents.changes[2]
+    const cart = documents.model.classes[0]
+    const checkout = documents.model.classes[1]
+    if (!template || !cart || !checkout) throw new Error('Missing history fixtures.')
+    const baseline = changeSchema.parse({ ...template, seq: 0, delta: [], cause: { kind: 'baseline', eventId: template.id, observedAt: 'before-first-edit' } })
+    const first = { ...template, seq: 1 }
+    const second = changeSchema.parse({ ...template, seq: 2, delta: [], cause: { kind: 'tool', eventId: template.id, tool: 'apply_patch', mentionedClasses: [checkout.id] } })
+    const deletion = changeSchema.parse({ ...template, seq: 3, delta: [{ v: 1, op: 'node.remove', node: cart }] })
+    const later = { ...second, seq: 4 }
+    const history = [later, deletion, second, first].map((change) => ({ change, classIds: toDiagramView(documents.model, change).classes.map((symbol) => symbol.id) }))
+    const afterDeletion = { ...documents.model, classes: documents.model.classes.filter((symbol) => symbol.id !== cart.id), relations: [] }
+
+    expect(toDiagramView(documents.model, baseline, history).classes.map((symbol) => symbol.name)).toEqual(['Cart'])
+    expect(toDiagramView(documents.model, first, history).classes.map((symbol) => symbol.name)).toEqual(['Cart'])
+    expect(toDiagramView(documents.model, second, history).classes.map((symbol) => [symbol.name, symbol.change])).toEqual([['Cart', 'unchanged'], ['CheckoutService', 'unchanged']])
+    for (const selected of [deletion, later]) {
+      const view = toDiagramView(afterDeletion, selected, history)
+      expect(view.classes.map((symbol) => symbol.name).sort()).toEqual(['Cart', 'CheckoutService'])
+      expect(view.classes.find((symbol) => symbol.id === cart.id)).toMatchObject({ change: 'deleted', methods: expect.arrayContaining([expect.objectContaining({ change: 'deleted' })]) })
+    }
+    expect(afterDeletion.classes.some((symbol) => symbol.id === cart.id)).toBe(false)
+  })
+
   it('gives every class a stable, distinct position', () => {
     const view = fixtureSource.load()
     expect(layout(view)).toEqual(layout(view))

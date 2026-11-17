@@ -1,0 +1,14 @@
+{
+  "id": "61141fcd-532f-4362-8819-ace10c79a051",
+  "source": "copilot",
+  "event": "userPromptSubmitted",
+  "receivedAt": 1794908019835,
+  "payload": {
+    "timestamp": "2026-11-17T09:33:39.221Z",
+    "hook_event_name": "UserPromptSubmit",
+    "session_id": "f654803f-adfe-44ea-84a7-41461cfe62df",
+    "transcript_path": "<path>",
+    "prompt": "Add a method in the npyimagecropper class that reverts the cropped image",
+    "cwd": "<workspace>"
+  }
+}

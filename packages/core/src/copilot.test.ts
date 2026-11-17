@@ -29,6 +29,15 @@ describe('Copilot normalization', () => {
   it.each(['get_errors', 'read_file', 'grep_search', 'run_in_terminal', 'configure_python_environment', 'install_python_packages', 'memory'])('ignores %s for edits', (tool) => {
     expect(adapter.toEvents(raw(tool, { filePath: 'image_compare.py' }, 'postToolUse'))).toEqual([])
   })
+  it('tracks VS Code symbol renames against their source file', () => {
+    const input = { filePath: 'image_compare.py', symbol: 'NpyImageCropper', newName: 'ImageCropAndRevertor' }
+    expect(adapter.toEvents(raw('vscode_renameSymbol', input))).toMatchObject([
+      { kind: 'edit.pending', payload: { tool: 'vscode_renameSymbol', files: ['image_compare.py'], intent: 'edit' } }
+    ])
+    expect(adapter.toEvents(raw('vscode_renameSymbol', input, 'postToolUse'))).toMatchObject([
+      { kind: 'edit.applied', payload: { tool: 'vscode_renameSymbol', files: ['image_compare.py'], intent: 'edit' } }
+    ])
+  })
   it.each([null, 42, {}, { id: 'invalid' }, raw('create_file', {}), raw('apply_patch', { input: 'not a patch' }), raw('create_file', { filePath: '../private.py' })])('returns an error without throwing for malformed input %#', (input) => {
     expect(() => adapter.normalize(input)).not.toThrow()
     expect(adapter.normalize(input).ok).toBe(false)

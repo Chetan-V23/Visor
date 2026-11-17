@@ -82,7 +82,7 @@ const fileChangeEvents = new Set(['preToolUse', 'PreToolUse', 'postToolUse', 'Po
 const fileChangeTools = new Set([
   'create_file', 'replace_string_in_file', 'multi_replace_string_in_file',
   'insert_edit_into_file', 'apply_patch', 'edit_file',
-  'edit_notebook_file', 'create_new_jupyter_notebook'
+  'edit_notebook_file', 'create_new_jupyter_notebook', 'vscode_renameSymbol'
 ])
 
 export function isFileChangeHook(raw: RawHook): boolean {

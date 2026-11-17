@@ -1,0 +1,14 @@
+{
+  "id": "6c2bcd35-bfaf-47ed-8a06-41b8ecce2587",
+  "source": "copilot",
+  "event": "userPromptSubmitted",
+  "receivedAt": 1794908176857,
+  "payload": {
+    "timestamp": "2026-11-17T09:36:16.294Z",
+    "hook_event_name": "UserPromptSubmit",
+    "session_id": "f654803f-adfe-44ea-84a7-41461cfe62df",
+    "transcript_path": "<path>",
+    "prompt": "rename NpyImageCropper class to ImageCropAndRevertor",
+    "cwd": "<workspace>"
+  }
+}
