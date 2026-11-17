@@ -104,7 +104,11 @@ export function toDiagramView(model: CodeModel, change: Change | null): Pick<Dia
   const visibleClasses = change && change.cause.kind !== 'baseline'
     ? new Set(touchedClasses)
     : new Set(classes.keys())
-  if (change?.cause.kind === 'tool') for (const id of change.cause.mentionedClasses ?? []) if (classes.has(id)) visibleClasses.add(id)
+  if (change?.cause.kind === 'tool') {
+    for (const id of change.cause.mentionedClasses ?? []) {
+      if (classes.has(id)) visibleClasses.add(id)
+    }
+  }
   for (const delta of change?.delta ?? []) {
     if (delta.op !== 'edge.add' && delta.op !== 'edge.remove') continue
     const from = owners.get(delta.relation.from)

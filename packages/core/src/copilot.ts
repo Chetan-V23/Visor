@@ -82,9 +82,13 @@ export function mentionedClassIds(value: unknown, context: { workspaceRoot: stri
     for (const name of names) {
       const candidates = byName.get(name) ?? []
       const local = candidates.filter((symbol) => symbol.file === path)
+      if (local.length) {
+        for (const symbol of local) result.add(symbol.id)
+        continue
+      }
       const related = candidates.filter((symbol) => linked.has(symbol.id))
-      const matches = local.length ? local : related.length === 1 ? related : candidates.length === 1 ? candidates : []
-      for (const symbol of matches) result.add(symbol.id)
+      const match = related.length === 1 ? related[0] : candidates.length === 1 ? candidates[0] : undefined
+      if (match) result.add(match.id)
     }
   }
   return [...result]
