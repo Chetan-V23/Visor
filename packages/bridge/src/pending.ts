@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { z } from 'zod'
 import { rawHookSchema, type RawHook } from './index'
 import { writeJsonAtomic } from './node'
-import { readSourceSync, scanPython, snapshotPolicy, sourceSnapshotSchema, workspaceRoot } from './workspace'
+import { readSourceSync, scanSources, snapshotPolicy, sourceSnapshotSchema, workspaceRoot } from './workspace'
 
 const MAX_SNAPSHOT_BYTES = 16 * 1024 * 1024
 const pendingHookSchema = z.object({
@@ -22,7 +22,7 @@ export async function savePendingHook(folder: string, raw: RawHook, paths: strin
   const captured = paths.filter((path) => allowed(path)).map((path) => ({ path, text: readSourceSync(root, path) }))
   const bytes = captured.reduce((size, file) => size + Buffer.byteLength(file.text ?? '', 'utf8'), 0)
   if (bytes > MAX_SNAPSHOT_BYTES) throw new Error('Tool snapshot exceeds the byte limit.')
-  const baseline = raw.event.toLowerCase() === 'pretooluse' ? await scanPython(root, MAX_SNAPSHOT_BYTES - bytes) : undefined
+  const baseline = raw.event.toLowerCase() === 'pretooluse' ? await scanSources(root, MAX_SNAPSHOT_BYTES - bytes) : undefined
   const pending = pendingHookSchema.parse({ v: 1, raw, captured, baseline })
   await writeJsonAtomic(join(folder, 'pending-hooks', `${raw.id}.json`), pending)
 }

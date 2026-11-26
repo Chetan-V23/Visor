@@ -7,7 +7,7 @@ import { join, resolve } from 'node:path'
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
 import { readRuntime, writeJsonAtomic } from '../packages/bridge/src/node'
 import { rawHookSchema, type RawHook } from '../packages/bridge/src/index'
-import { visorEventSchema } from '../packages/protocol/src/index'
+import { graphFromModel, visorEventSchema } from '../packages/protocol/src/index'
 import { openDatabase, SqliteChangeStore } from '../packages/store/src/index'
 import { hookConfiguration } from '../apps/hook/src/install'
 import { seedHistory } from '../apps/cli/src/seed-history'
@@ -18,6 +18,85 @@ let page: Page
 let rendererErrors: string[]
 let dataFolder: string
 let captureFolder: string
+
+test('captures mixed JS, TSX, C# and C++ edits and restores their diagram after restart', async () => {
+  const workspace = join(dataFolder, 'mixed')
+  await mkdir(workspace)
+  const edits = [
+    { file: 'caption.js', text: 'export function caption() { return "before"; }', from: 'before', to: 'after', badge: 'JS' },
+    { file: 'Card.tsx', text: 'import { caption } from "./caption"; export const Card = () => <b>{caption()} before</b>;', from: 'before', to: 'after', badge: 'TS' },
+    { file: 'Reader.cs', text: 'namespace Demo; public partial class Reader { public int Read(int n) { return n + 1; } }', from: '+ 1', to: '+ 2', badge: 'C#' },
+    { file: 'calc.cpp', text: '#include "calc.hpp"\nint Calc::get(int value) const {\n  if (value < 0) return limit();\n  return value + 1;\n}\nint Calc::limit() const {\n  return 42;\n}', from: '  return', to: '  log("get");\n  return', badge: 'C++' }
+  ]
+  await Promise.all([...edits, { file: 'calc.hpp', text: '#ifndef CALC_HPP\n#define CALC_HPP\nclass Calc_EXPORT Calc { public: int get(int n) const; int limit() const; };\n#endif' },
+    { file: 'Reader.More.cs', text: 'namespace Demo; public partial class Reader { public string Name { get; set; } public int Read(string text) { return 0; } }' },
+    { file: 'Desktop.csproj', text: '<Project />' }].map(({ file, text }) => writeFile(join(workspace, file), text)))
+  await expect.poll(() => readRuntime(dataFolder)).not.toBeNull()
+  const runtime = await readRuntime(dataFolder)
+  if (!runtime) throw new Error('Missing runtime.')
+  const sessionId = 'mixed-languages'
+  const send = async (event: string, payload: RawHook['payload'] = {}) => {
+    const raw: RawHook = { id: randomUUID(), source: 'copilot', event, receivedAt: Date.now(), payload: { cwd: workspace, session_id: sessionId, ...payload } }
+    const response = await fetch(`http://127.0.0.1:${runtime.port}/hooks/raw`, { method: 'POST', headers: { Authorization: `Bearer ${runtime.token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(raw) })
+    expect(response.status).toBe(202)
+  }
+  const changes = () => page.evaluate((id) => window.visorHistory!.listChanges(id), sessionId)
+  await send('sessionStart')
+  await expect.poll(async () => (await changes()).length).toBe(1)
+  for (const [index, edit] of edits.entries()) {
+    const tool = { tool_name: 'edit_file', tool_use_id: edit.file, tool_input: { filePath: edit.file } }
+    await send('preToolUse', tool)
+    await writeFile(join(workspace, edit.file), edit.text.replace(edit.from, edit.to))
+    await send('postToolUse', tool)
+    await expect.poll(async () => (await changes())[0]?.seq).toBe(index + 1)
+    expect((await changes())[0]?.delta.some((delta) => delta.op === 'member.change')).toBe(true)
+    await expect(page.locator('.class-kind').getByText(edit.badge, { exact: true }).first()).toBeVisible()
+  }
+  const newest = (await changes())[0]
+  if (!newest) throw new Error('Missing C++ edit.')
+  await app.close()
+  const database = openDatabase(join(dataFolder, 'visor.db'))
+  try {
+    const previous = new SqliteChangeStore(database, []).previousChange(sessionId, newest.seq)
+    if (!previous) throw new Error('Missing pre-edit snapshot.')
+    const legacy = graphFromModel(previous.model)
+    delete legacy.analysisVersion
+    legacy.symbols = legacy.symbols.filter((symbol) => symbol.language !== 'cpp' || symbol.kind === 'module')
+    legacy.relations = legacy.relations.filter((edge) => !edge.from.startsWith('cpp:') && !edge.to.startsWith('cpp:'))
+    database.prepare('UPDATE changes SET model_after_json = ? WHERE id = ?').run(JSON.stringify(legacy), previous.change.id)
+  } finally { database.close() }
+  await writeFile(join(workspace, 'calc.cpp'), 'int unrelated;')
+  app = await electron.launch({ args: [resolve('apps/desktop/out/main/index.js')], env: { ...process.env, VISOR_DATA_DIR: dataFolder, VISOR_CAPTURE_DIR: captureFolder } })
+  page = await app.firstWindow()
+  page.on('pageerror', (error) => rendererErrors.push(error.message))
+  await expect(page.getByTestId('change-entry')).toHaveCount(5)
+  const snapshot = await page.evaluate((id) => window.visorHistory!.getChange(id), newest.id)
+  const reader = snapshot?.model.classes.filter((symbol) => symbol.name === 'Reader')
+  expect(reader).toHaveLength(1)
+  expect(new Set(reader?.[0]?.methods.map((method) => method.id)).size).toBe(2)
+  expect(snapshot?.model.relations).toContainEqual(expect.objectContaining({ kind: 'calls', from: 'ts:Card.tsx::Card', to: 'js:caption.js::caption' }))
+  expect(snapshot?.model.relations).toContainEqual(expect.objectContaining({ kind: 'calls', from: expect.stringContaining('::Calc.get('), to: expect.stringContaining('::Calc.limit(') }))
+  const calls = page.locator('.relation-label[title^="Call ("]')
+  await expect(calls).toHaveText(['Calls caption()'])
+  await expect(calls).toHaveAttribute('title', /inferred[\s\S]*Card\.tsx:1/)
+  await expect(page.getByRole('article', { name: 'Reader class', exact: true }).getByRole('list', { name: 'Fields and properties' })).toContainText('Name')
+  await expectDiagramFramed()
+  await page.screenshot({ path: 'test-results/visor-mixed-desktop.png', fullPage: true })
+  const cpp = page.getByRole('article', { name: 'Calc class', exact: true })
+  await expect(cpp.locator('.class-file')).toHaveText('calc.cpp')
+  await cpp.getByRole('button', { name: 'edited get', exact: true }).focus()
+  await expect(page.locator('.method-tooltip .code-added')).toHaveText('+  log("get");')
+  await expect(page.locator('.method-tooltip .code-deleted')).toHaveCount(0)
+  await expect(page.locator('.method-tooltip')).toContainText('return value + 1;')
+  await cpp.getByRole('button', { name: /\blimit$/ }).focus()
+  await expect(page.locator('.method-tooltip')).toContainText('return 42;')
+  await expect(page.locator('.method-tooltip .code-added, .method-tooltip .code-deleted')).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('button', { name: 'Fit diagram', exact: true }).click()
+  await expectDiagramFramed()
+  await page.screenshot({ path: 'test-results/visor-mixed-mobile.png', fullPage: true })
+})
 
 test('persists captured NIfTI edits and a follow-up body edit across restarting Electron', async () => {
   const workspace = join(dataFolder, 'workspace')

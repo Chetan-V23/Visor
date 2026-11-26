@@ -26,7 +26,7 @@ const event = (kind: 'session.started' | 'turn.ended' | 'session.ended' = 'sessi
     : kind === 'turn.ended' ? { ...base, kind, payload: { stopHookActive: false } }
       : { ...base, kind, payload: { reason: null } }
 }
-const model: CodeModel = { v: 1, classes: [], relations: [] }
+const model: CodeModel = { v: 2, classes: [], relations: [] }
 function baseline(input: VisorEvent, hash = contentHash('before')): Change {
   return { v: 1, id: randomUUID(), sessionId: input.sessionId, seq: 0, ts: input.ts, cause: { kind: 'baseline', eventId: input.id, observedAt: 'session-start' }, summary: 'Baseline', files: [{ path: 'a.py', beforeHash: null, afterHash: hash, added: 0, deleted: 0 }], delta: [] }
 }
@@ -62,6 +62,18 @@ it('saves immutable baseline models and exact content snapshots', () => {
   expect(store.getChange(change.id)).toEqual({ change, model })
   expect(store.currentFiles('session')).toEqual([{ path: 'a.py', text: 'before' }])
   expect(store.getBlob(contentHash('before'))).toBe('before')
+})
+it('writes a v2 graph and reads existing v1 Python rows without rewriting them', () => {
+  const { database, store } = setup()
+  const input = event()
+  const change = baseline(input)
+  store.commit(input, project, { baseline: { change, model }, snapshots: [{ path: 'a.py', text: 'before' }] })
+  const saved = database.prepare('SELECT model_after_json FROM changes WHERE id = ?')
+  expect(saved.pluck().get(change.id)).toBe(JSON.stringify({ v: 2, symbols: [], relations: [] }))
+  const legacy = { v: 1, classes: [{ id: 'py:a.py::Original', name: 'Original', file: 'a.py', range: null, bases: [], methods: [], fields: [] }], relations: [] }
+  database.prepare('UPDATE changes SET model_after_json = ? WHERE id = ?').run(JSON.stringify(legacy), change.id)
+  expect(store.getChange(change.id)?.model).toEqual(legacy)
+  expect(saved.get(change.id)).toBe(JSON.stringify(legacy))
 })
 it('looks up historical source across unrelated edits and stops at a file deletion', () => {
   const { store } = setup()

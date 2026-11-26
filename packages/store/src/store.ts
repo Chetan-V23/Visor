@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import type Database from 'better-sqlite3'
-import { changeSchema, codeModelSchema, semanticDocumentSchema, sessionSummarySchema, visorEventSchema, type Change, type CodeModel, type SemanticDocument, type SessionSummary, type VisorEvent } from '@visor/protocol'
+import { graphFromModel, readStoredModel, storedChangeSchema, semanticDocumentSchema, sessionSummarySchema, visorEventSchema, type Change, type CodeModel, type SemanticDocument, type SessionSummary, type VisorEvent } from '@visor/protocol'
 
 export interface Migration { version: number; sql: string }
 export interface SnapshotFile { path: string; text: string | null }
@@ -62,6 +62,7 @@ export class SqliteChangeStore implements ChangeStore {
       const row = record(value)
       return sessionSummarySchema.parse({
         v: 1, id: row.id, title: row.title, startedAt: row.started_at, startObserved: row.start_observed === 1,
+        source: row.source,
         project: { id: row.project_id, name: row.project_name, branch: row.branch }
       })
     })
@@ -69,14 +70,14 @@ export class SqliteChangeStore implements ChangeStore {
 
   listChanges(sessionId: string): Change[] {
     return this.database.prepare('SELECT document_json FROM changes WHERE session_id = ? ORDER BY seq DESC').all(sessionId)
-      .map((row) => changeSchema.parse(JSON.parse(textField(record(row), 'document_json'))))
+      .map((row) => storedChangeSchema.parse(JSON.parse(textField(record(row), 'document_json'))))
   }
 
   getChange(id: string): StoredChange | null {
     const value = this.database.prepare('SELECT document_json, model_after_json FROM changes WHERE id = ?').get(id)
     if (!value) return null
     const row = record(value)
-    return { change: changeSchema.parse(JSON.parse(textField(row, 'document_json'))), model: codeModelSchema.parse(JSON.parse(textField(row, 'model_after_json'))) }
+    return { change: storedChangeSchema.parse(JSON.parse(textField(row, 'document_json'))), model: readStoredModel(JSON.parse(textField(row, 'model_after_json'))) }
   }
 
   latestChange(sessionId: string): StoredChange | null {
@@ -122,7 +123,7 @@ export class SqliteChangeStore implements ChangeStore {
     const value = this.database.prepare("SELECT document_json FROM events WHERE session_id = ? AND kind = 'edit.pending' AND json_extract(document_json, '$.payload.toolCallId') = ? ORDER BY seq DESC LIMIT 1").get(sessionId, toolCallId)
     if (!value) return []
     const event = visorEventSchema.parse(JSON.parse(textField(record(value), 'document_json')))
-    return event.kind === 'edit.pending' ? event.payload.mentionedClasses ?? [] : []
+    return event.kind === 'edit.pending' ? event.payload.mentionedSymbols ?? event.payload.mentionedClasses ?? [] : []
   }
   nextEventSequence(sessionId: string): number { return Number(record(this.database.prepare('SELECT COALESCE(MAX(seq) + 1, 0) AS seq FROM events WHERE session_id = ?').get(sessionId)).seq) }
   nextChangeSequence(sessionId: string): number { return Number(record(this.database.prepare('SELECT COALESCE(MAX(seq) + 1, 0) AS seq FROM changes WHERE session_id = ?').get(sessionId)).seq) }
@@ -178,8 +179,8 @@ export class SqliteChangeStore implements ChangeStore {
   }
 
   private putChange(input: StoredChange, sessionId: string): void {
-    const change = changeSchema.parse(input.change)
-    const model = codeModelSchema.parse(input.model)
+    const change = storedChangeSchema.parse(input.change)
+    const model = graphFromModel(input.model)
     if (change.sessionId !== sessionId) throw new Error('Change must belong to the committed event session.')
     this.database.prepare('INSERT INTO changes(id, session_id, seq, ts, summary, delta_json, model_after_json, document_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
       .run(change.id, change.sessionId, change.seq, change.ts, change.summary, JSON.stringify(change.delta), JSON.stringify(model), JSON.stringify(change))

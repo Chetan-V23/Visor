@@ -131,6 +131,17 @@ describe('Step 1 diagram source', () => {
     expect(view.edges.every((edge) => edge.kind === 'composes' && edge.certainty === 'inferred' && edge.evidence?.[0]?.reason === 'Constructed field.')).toBe(true)
   })
 
+  it('omits calls within one card while preserving cross-card calls and same-card signals', () => {
+    const [source, target] = documents.model.classes
+    const caller = source?.methods[0], helper = source?.methods[1], callee = target?.methods[0]
+    if (!source || !target || !caller || !helper || !callee) throw new Error('Missing method fixtures.')
+    const internal = { kind: 'calls' as const, from: caller.id, to: helper.id, certainty: 'inferred' as const }
+    const relations = [internal, { ...internal, to: caller.id }, { ...internal, to: callee.id }, { ...internal, kind: 'connects' as const, label: 'ready' }]
+    const view = toDiagramView({ ...documents.model, relations }, null)
+    expect(view.edges.filter((edge) => edge.kind === 'calls')).toEqual([expect.objectContaining({ from: source.id, to: target.id })])
+    expect(view.edges).toContainEqual(expect.objectContaining({ kind: 'connects', from: source.id, to: source.id, label: 'ready' }))
+  })
+
   it('projects a removed class from its prior symbol data', () => {
     const symbol = documents.model.classes[0]
     const change = documents.changes[0]

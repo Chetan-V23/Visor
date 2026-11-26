@@ -2,13 +2,14 @@ import { randomUUID } from 'node:crypto'
 import { basename } from 'node:path'
 import type { RawHook } from '@visor/bridge'
 import type { PendingHook } from '@visor/bridge/pending'
-import { assembleModel, contentHash, CopilotAdapter, createChange, diffModels, mentionedClassIds } from '@visor/core'
-import { changeSchema, type Change, type CodeModel, type LanguageExtractor, type VisorEvent } from '@visor/protocol'
+import { analyzeSources, contentHash, normalizeHook, createChange, diffModels, mentionedClassIds, SOURCE_ANALYSIS_VERSION, summarize } from '@visor/core'
+import { changeSchema, grammarForFile, type Change, type CodeModel, type LanguageExtractor, type VisorEvent } from '@visor/protocol'
 import type { ChangeStore, SnapshotFile, StoredChange } from '@visor/store'
-import { readSource, readSourceSync, scanPython, snapshotPolicy, workspaceRoot } from '@visor/bridge/workspace'
+import { readSource, readSourceSync, scanSources, snapshotPolicy, workspaceRoot } from '@visor/bridge/workspace'
 
 export class ChangePipeline {
   private queue: Promise<void> = Promise.resolve()
+  private readonly recovered = new Map<string, StoredChange>()
 
   constructor(private readonly options: {
     store: ChangeStore
@@ -22,7 +23,7 @@ export class ChangePipeline {
     let captured: SnapshotFile[] | undefined = pending?.captured
     try {
       const root = typeof raw.payload.cwd === 'string' ? raw.payload.cwd : ''
-      const result = new CopilotAdapter({ workspaceRoot: root, workspaceId: contentHash(root), seq: 0 }).normalize(raw)
+      const result = normalizeHook(raw, { workspaceRoot: root, workspaceId: contentHash(root), seq: 0 })
       const event = result.ok ? result.events[0] : undefined
       if (event?.kind === 'edit.pending' || event?.kind === 'edit.applied') {
         if (event.payload.files.length > 64) throw new Error('Tool snapshot exceeds the file limit.')
@@ -50,37 +51,52 @@ export class ChangePipeline {
 
   snapshot(stored: StoredChange): StoredChange {
     const { change } = stored
+    const hasFacts = this.options.store.semanticDocuments(change.sessionId).length > 0
+    if (!hasFacts) {
+      if ((stored.model.analysisVersion ?? 1) >= SOURCE_ANALYSIS_VERSION || !this.options.extractors.some((extractor) => extractor.language === 'cpp')) return stored
+      if (!change.files.some((file) => grammarForFile(file.path) === 'cpp') && !stored.model.classes.some((node) => node.id.startsWith('cpp:'))) return stored
+      const cached = this.recovered.get(change.id)
+      if (cached) return cached
+    }
     const snapshots = this.options.store.filesAtChange(change.sessionId, change.seq)
     if (!snapshots.length) return stored
     const after = new Map(snapshots.map((file) => [file.path, file.text ?? '']))
+    if (change.files.some((file) => file.afterHash !== null ? !after.has(file.path) : file.beforeHash === null)) return stored
     const model = this.model(after, change.sessionId)
-    if (change.cause.kind === 'baseline') return { change, model }
-    const before = new Map(this.options.store.filesAtChange(change.sessionId, change.seq - 1).map((file) => [file.path, file.text ?? '']))
-    for (const file of change.files) {
-      const text = file.beforeHash === null ? null : this.options.store.getBlob(file.beforeHash)
-      if (text === null) before.delete(file.path)
-      else before.set(file.path, text)
+    let result: StoredChange = { change, model }
+    if (change.cause.kind !== 'baseline') {
+      const before = new Map(after)
+      for (const file of change.files) {
+        if (file.beforeHash === null) { before.delete(file.path); continue }
+        const text = this.options.store.getBlob(file.beforeHash)
+        if (text === null) return stored
+        before.set(file.path, text)
+      }
+      const delta = [...diffModels(this.model(before, change.sessionId), model), ...change.delta.filter((entry) => entry.op === 'code.hunks' && entry.hunks.length > 0)]
+      result = { model, change: { ...change, delta, summary: summarize(delta, change.files.length) } }
     }
-    return { model, change: { ...change, delta: [...diffModels(this.model(before, change.sessionId), model), ...change.delta.filter((entry) => entry.op === 'code.hunks' && entry.hunks.length > 0)] } }
+    if (!hasFacts) {
+      const oldest = this.recovered.keys().next().value
+      if (this.recovered.size >= 4 && oldest !== undefined) this.recovered.delete(oldest)
+      this.recovered.set(change.id, result)
+    }
+    return result
   }
 
   private model(files: Map<string, string>, sessionId = ''): CodeModel {
-    return assembleModel([...files].flatMap(([path, text]) => {
-      const extractor = this.options.extractors.find((candidate) => candidate.matches(path))
-      return extractor ? [extractor.extract(path, text)] : []
-    }), this.options.store.semanticDocuments(sessionId))
+    return analyzeSources(files, this.options.extractors, this.options.store.semanticDocuments(sessionId))
   }
 
   private async process(raw: RawHook, captured?: SnapshotFile[], frozenBaseline?: SnapshotFile[]): Promise<void> {
     const store = this.options.store
     if (store.hasEvent(raw.id)) return
     const requestedRoot = typeof raw.payload.cwd === 'string' ? raw.payload.cwd : ''
-    const probe = new CopilotAdapter({ workspaceRoot: requestedRoot, workspaceId: contentHash(requestedRoot), seq: 0 }).normalize(raw)
+    const probe = normalizeHook(raw, { workspaceRoot: requestedRoot, workspaceId: contentHash(requestedRoot), seq: 0 })
     if (!probe.ok) { this.options.onNormalized([], probe.error); return }
     if (!probe.events.length) return
     const root = workspaceRoot(requestedRoot)
     const project = { id: contentHash(process.platform === 'win32' ? root.toLowerCase() : root), root, name: basename(root), branch: '' }
-    const normalized = new CopilotAdapter({ workspaceRoot: requestedRoot, workspaceId: project.id, seq: store.nextEventSequence(probe.events[0]?.sessionId ?? '') }).normalize(raw)
+    const normalized = normalizeHook(raw, { workspaceRoot: requestedRoot, workspaceId: project.id, seq: store.nextEventSequence(probe.events[0]?.sessionId ?? '') })
     if (!normalized.ok) { this.options.onNormalized([], normalized.error); return }
     const event = normalized.events[0]
     if (!event) return
@@ -89,7 +105,7 @@ export class ChangePipeline {
     let baseline: StoredChange | undefined
     let baselineFiles: SnapshotFile[] | undefined
     if (!latest) {
-      baselineFiles = frozenBaseline ?? await scanPython(root)
+      baselineFiles = frozenBaseline ?? await scanSources(root)
       if (event.kind === 'edit.pending' || event.kind === 'edit.applied') {
         for (const path of affected) {
           const snapshot = captured?.find((file) => file.path === path)
@@ -113,7 +129,7 @@ export class ChangePipeline {
     if (event.kind === 'edit.pending') {
       const model = latest?.model ?? baseline?.model
       const mentions = model ? mentionedClassIds(raw, { workspaceRoot: requestedRoot, files: affected, models: [model] }) : []
-      if (mentions.length) event.payload.mentionedClasses = mentions
+      if (mentions.length) event.payload[mentions.every((id) => id.startsWith('py:')) ? 'mentionedClasses' : 'mentionedSymbols'] = mentions
     }
     const pending = event.kind === 'edit.pending'
       ? captured ?? await Promise.all(event.payload.files.map(async (path) => ({ path, text: await readSource(root, path) }))) : undefined
@@ -138,7 +154,7 @@ export class ChangePipeline {
         const beforeModel = this.model(before, event.sessionId)
         const pendingMentions = event.payload.toolCallId ? store.pendingClassMentions(event.sessionId, event.payload.toolCallId) : []
         const mentions = new Set([...pendingMentions, ...mentionedClassIds(raw, { workspaceRoot: requestedRoot, files: affected, models: [beforeModel, model] })])
-        if (mentions.size) event.payload.mentionedClasses = [...mentions]
+        if (mentions.size) event.payload[[...mentions].every((id) => id.startsWith('py:')) ? 'mentionedClasses' : 'mentionedSymbols'] = [...mentions]
         change = { change: createChange(event, store.nextChangeSequence(event.sessionId), beforeModel, model, pairs), model }
       }
     }

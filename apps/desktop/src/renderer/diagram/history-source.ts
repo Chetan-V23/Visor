@@ -1,6 +1,6 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { historySnapshotSchema, type HistorySnapshot } from '@visor/bridge'
-import { changeSchema, sessionSummarySchema, type Change, type SessionSummary } from '@visor/protocol'
+import { storedChangeSchema, sessionSummarySchema, type Change, type SessionSummary } from '@visor/protocol'
 import { toDiagramChanges, toDiagramView, type DiagramHistoryEntry } from './protocol-adapter'
 import type { DiagramSource, DiagramView } from './types'
 
@@ -25,7 +25,7 @@ export function useHistory(source: DiagramSource) {
   const [sample] = useState(() => preview ? source.load() : emptyView)
   const [state, setState] = useState<HistoryState>({ mode: 'live', sessionId: null, selectedId: preview ? sample.changes[0]?.id ?? null : null, sessions: [], changes: [], history: [], snapshot: null, loading: !preview, error: null })
   const request = useRef<HistoryRequest>({ version: 0, mode: 'live', sessionId: null, selectedId: null })
-  const scopes = useRef(new Map<string, string[]>())
+  const scopes = useRef(new Map<string, { classIds: string[]; summary: string }>())
 
   async function load(sessionId: string | null, selectedId: string | null, mode: HistoryState['mode']): Promise<void> {
     const bridge = window.visorHistory
@@ -36,7 +36,7 @@ export function useHistory(source: DiagramSource) {
     try {
       const sessions = sessionSummarySchema.array().parse(await bridge.listSessions())
       const session = sessions.find((candidate) => candidate.id === sessionId) ?? sessions[0]
-      const changes = session ? changeSchema.array().parse(await bridge.listChanges(session.id)) : []
+      const changes = session ? storedChangeSchema.array().parse(await bridge.listChanges(session.id)) : []
       const selected = mode === 'paused' ? changes.find((change) => change.id === selectedId) ?? changes[0] : changes[0]
       const document = selected ? await bridge.getChange(selected.id) : null
       const snapshot = document === null ? null : historySnapshotSchema.parse(document)
@@ -44,15 +44,19 @@ export function useHistory(source: DiagramSource) {
       const included = selected?.cause.kind === 'baseline' ? edits.slice(0, 1) : edits.filter((change) => selected && change.seq <= selected.seq)
       const history = await Promise.all(included.map(async (change): Promise<DiagramHistoryEntry> => {
         const cached = scopes.current.get(change.id)
-        if (cached && change.id !== selected?.id) return { change, classIds: cached }
+        if (cached && change.id !== selected?.id) return { change, classIds: cached.classIds }
         const saved = change.id === snapshot?.change.id ? snapshot : historySnapshotSchema.parse(await bridge.getChange(change.id))
         const classIds = toDiagramView(saved.model, saved.change).classes.map((symbol) => symbol.id)
-        if (current === request.current.version) scopes.current.set(change.id, classIds)
-        return { change, classIds }
+        if (current === request.current.version) scopes.current.set(change.id, { classIds, summary: saved.change.summary })
+        return { change: saved.change, classIds }
       }))
       if (current !== request.current.version) return
+      const displayChanges = changes.map((change) => {
+        const summary = scopes.current.get(change.id)?.summary
+        return summary && summary !== change.summary ? { ...change, summary } : change
+      })
       request.current = { version: current, mode, sessionId: session?.id ?? null, selectedId: selected?.id ?? null }
-      setState({ mode, sessionId: session?.id ?? null, selectedId: selected?.id ?? null, sessions, changes, history, snapshot, loading: false, error: null })
+      setState({ mode, sessionId: session?.id ?? null, selectedId: selected?.id ?? null, sessions, changes: displayChanges, history, snapshot, loading: false, error: null })
     } catch {
       if (current === request.current.version) setState((previous) => ({ ...previous, loading: false, error: 'Could not load session history.' }))
     }

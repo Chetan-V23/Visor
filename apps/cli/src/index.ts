@@ -1,9 +1,10 @@
 import { access } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import { join, resolve } from 'node:path'
-import { replay } from '@visor/core'
+import { loadSourceParsers, replay } from '@visor/core'
 import { dataFolder } from '@visor/bridge/node'
 import { openDatabase, SqliteChangeStore } from '@visor/store'
-import { loadFrames, pythonParser } from './fixtures'
+import { loadFrames } from './fixtures'
 
 async function main(): Promise<void> {
   const [command, ...args] = process.argv.slice(2)
@@ -19,9 +20,10 @@ async function main(): Promise<void> {
   }
   const target = args[0]
   if (command !== 'replay' || !target) throw new Error('Usage: pnpm visor replay <fixture-session> | pnpm visor dump --session <id>')
-  const { parser, extractor } = await pythonParser()
-  try { process.stdout.write(`${JSON.stringify(replay(await loadFrames(resolve(target)), extractor), null, 2)}\n`) }
-  finally { parser.delete() }
+  const require = createRequire(import.meta.url)
+  const registry = await loadSourceParsers((grammar) => require.resolve(`tree-sitter-wasms/out/tree-sitter-${grammar}.wasm`))
+  try { process.stdout.write(`${JSON.stringify(replay(await loadFrames(resolve(target)), registry.extractors), null, 2)}\n`) }
+  finally { registry.dispose() }
 }
 void main().catch((error: unknown) => {
   process.stderr.write(`${error instanceof Error ? error.message : 'Visor command failed.'}\n`)

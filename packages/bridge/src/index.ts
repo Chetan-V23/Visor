@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { changeSchema, codeModelSchema, type Change, type SessionSummary, type VisorEvent } from '@visor/protocol'
+import { storedChangeSchema, diagramModelSchema, type Change, type SessionSummary, type VisorEvent } from '@visor/protocol'
 
 export const MAX_HOOK_BYTES = 1024 * 1024
 export const MAX_RECENT_EVENTS = 200
@@ -47,7 +47,7 @@ export interface HookBridge {
   onSnapshot(callback: (snapshot: HookSnapshot) => void): () => void
 }
 
-export const historySnapshotSchema = z.object({ change: changeSchema, model: codeModelSchema }).strip()
+export const historySnapshotSchema = z.object({ change: storedChangeSchema, model: diagramModelSchema }).strip()
 export type HistorySnapshot = z.infer<typeof historySnapshotSchema>
 export const methodCodeRequestSchema = z.object({ changeId: z.uuid(), methodId: z.string().min(1).max(2048) }).strict()
 export const methodCodeSchema = z.object({
@@ -78,14 +78,4 @@ export function isSessionStart(event: string): boolean {
   return event === 'sessionStart' || event === 'SessionStart'
 }
 
-const fileChangeEvents = new Set(['preToolUse', 'PreToolUse', 'postToolUse', 'PostToolUse'])
-const fileChangeTools = new Set([
-  'create_file', 'replace_string_in_file', 'multi_replace_string_in_file',
-  'insert_edit_into_file', 'apply_patch', 'edit_file',
-  'edit_notebook_file', 'create_new_jupyter_notebook', 'vscode_renameSymbol'
-])
-
-export function isFileChangeHook(raw: RawHook): boolean {
-  const toolName = raw.payload.toolName ?? raw.payload.tool_name
-  return fileChangeEvents.has(raw.event) && typeof toolName === 'string' && fileChangeTools.has(toolName)
-}
+export { hookKind, hookProviders, isFileChangeHook, isHookProvider, type HookProvider } from './hook-providers'

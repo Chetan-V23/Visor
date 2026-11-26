@@ -1,4 +1,6 @@
 export { PythonExtractor } from './python'
-export { CopilotAdapter, mentionedClassIds, relativePath, type AdapterContext, type Normalization } from './copilot'
-export { assembleModel, diffModels, summarize } from './model'
+export { analyzeSources, loadSourceParsers, referencePositions } from './languages'
+export { CopilotAdapter } from './copilot'
+export { normalizeHook, mentionedClassIds, relativePath, type AdapterContext, type Normalization } from './hooks'
+export { assembleModel, diffModels, SOURCE_ANALYSIS_VERSION, summarize } from './model'
 export { contentHash, createChange, methodCode, replay, type SourcePair, type ReplayFrame } from './change'

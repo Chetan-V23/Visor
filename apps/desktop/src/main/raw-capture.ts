@@ -24,7 +24,7 @@ function sanitizeValue(value: JsonValue, workspace: string, key = ''): JsonValue
   if (/authorization|password|passwd|secret|token|api[_-]?key|credential|cookie|private[_-]?key/i.test(key)) return '<redacted>'
   if (typeof value === 'string') {
     if (/transcript[_-]?path/i.test(key)) return '<path>'
-    if (/^(cwd|workspaceRoot|workspace_root|path|filePath|file_path)$/i.test(key)) {
+    if (/^(cwd|workspaceRoot|workspace_root|path|filePath|file_path|notebook_path)$/i.test(key)) {
       if (value === workspace) return '<workspace>'
       const paths = win32.isAbsolute(value) && /^[A-Za-z]:/.test(value) ? win32 : posix
       if (paths.isAbsolute(value) || isAbsolute(value)) {

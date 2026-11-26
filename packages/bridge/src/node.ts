@@ -5,7 +5,10 @@ import { dirname, join } from 'node:path'
 import { runtimeSchema, type Runtime } from './index'
 
 export function dataFolder(): string {
-  return process.env.VISOR_DATA_DIR ?? join(process.env.APPDATA ?? join(homedir(), '.config'), 'Visor')
+  if (process.env.VISOR_DATA_DIR) return process.env.VISOR_DATA_DIR
+  if (process.platform === 'win32') return join(process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'), 'Visor')
+  if (process.platform === 'darwin') return join(homedir(), 'Library', 'Application Support', 'Visor')
+  return join(process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'), 'Visor')
 }
 
 export async function writeJsonAtomic(path: string, value: unknown): Promise<void> {

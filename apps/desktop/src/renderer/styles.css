@@ -70,6 +70,13 @@ button svg { flex-shrink: 0; }
 .diagram-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--visor-muted); font-size: 12px; pointer-events: none; z-index: 1; }
 .class-file { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--visor-muted); }
 .class-methods { display: grid; gap: 6px; padding: 14px 12px; }
+.symbol-fields { list-style: none; margin: 0; padding: 0 16px; max-height: 84px; overflow: auto; border-bottom: 1px solid var(--visor-border); }
+.symbol-fields li { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 28px; font: 11px 'JetBrains Mono', monospace; }
+.symbol-fields li > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.symbol-fields small { color: var(--visor-muted); }
+.symbol-fields [data-change='added'] { color: var(--visor-added); }
+.symbol-fields [data-change='deleted'] { color: var(--visor-deleted); text-decoration: line-through; }
+.symbol-fields [data-change='modified'] > span { border-bottom: 2px solid var(--visor-accent, #f2d479); }
 .method-row { display: flex; align-items: flex-start; gap: 6px; border: 0; border-radius: 3px; background: transparent; padding: 7px 5px; width: 100%; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.6; }
 .method-name { overflow-wrap: anywhere; min-width: 0; }
 .method-marker { display: flex; align-items: center; justify-content: center; flex: 0 0 13px; height: 17px; font-size: 17px; }

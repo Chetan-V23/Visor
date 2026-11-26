@@ -1,9 +1,10 @@
 import { createHash } from 'node:crypto'
 import { diffLines, structuredPatch } from 'diff'
 import type { MethodCode } from '@visor/bridge'
-import { changeSchema, type Change, type CodeModel, type LanguageExtractor, type MethodSymbol, type VisorEvent } from '@visor/protocol'
-import { CopilotAdapter } from './copilot'
-import { assembleModel, diffModels, summarize } from './model'
+import { changeSchema, storedChangeSchema, type Change, type CodeModel, type LanguageExtractor, type MethodSymbol, type VisorEvent } from '@visor/protocol'
+import { normalizeHook } from './hooks'
+import { diffModels, summarize } from './model'
+import { analyzeSources } from './languages'
 
 export interface SourcePair { path: string; before: string | null; after: string | null }
 export interface ReplayFrame { raw: unknown; files: SourcePair[] }
@@ -19,6 +20,7 @@ export function methodCode(input: { file: string; before: MethodSource | null; a
     const { start, end } = source.range
     const lines = source.text.replace(/\r\n/g, '\n').split('\n').slice(start.line - 1, end.line - (end.column === 0 ? 1 : 0))
     if (end.column > 0 && lines.length > 0) lines[lines.length - 1] = (lines[lines.length - 1] ?? '').slice(0, end.column)
+    if (lines[0] && lines[0].slice(0, start.column).trim()) lines[0] = lines[0].slice(start.column)
     return lines.length ? `${lines.join('\n')}\n` : ''
   }
   return { file: input.file, lines: diffLines(body(input.before), body(input.after)).flatMap((part) =>
@@ -28,6 +30,7 @@ export function methodCode(input: { file: string; before: MethodSource | null; a
 
 export function createChange(event: Extract<VisorEvent, { kind: 'edit.applied' }>, seq: number, before: CodeModel, after: CodeModel, sources: SourcePair[]): Change {
   const delta = diffModels(before, after)
+  const version = before.v === 2 || after.v === 2 ? 2 : 1
   const files = sources.filter((source) => source.before !== source.after).map((source) => {
     const patch = structuredPatch(source.path, source.path, source.before ?? '', source.after ?? '')
     const hunks = patch.hunks.map((hunk) => ({
@@ -36,26 +39,28 @@ export function createChange(event: Extract<VisorEvent, { kind: 'edit.applied' }
         kind: line.startsWith('+') ? 'added' as const : line.startsWith('-') ? 'deleted' as const : 'context' as const, text: line.slice(1)
       }))
     }))
-    delta.push({ v: 1, op: 'code.hunks', file: source.path, hunks })
+    delta.push({ v: version, op: 'code.hunks', file: source.path, hunks })
     return {
       path: source.path, beforeHash: source.before === null ? null : contentHash(source.before), afterHash: source.after === null ? null : contentHash(source.after),
       added: hunks.reduce((count, hunk) => count + hunk.lines.filter((line) => line.kind === 'added').length, 0),
       deleted: hunks.reduce((count, hunk) => count + hunk.lines.filter((line) => line.kind === 'deleted').length, 0)
     }
   })
-  return changeSchema.parse({
-    v: 1, id: event.id, sessionId: event.sessionId, seq, ts: event.ts,
-    cause: { kind: 'tool', eventId: event.id, tool: event.payload.tool, ...(event.payload.toolCallId ? { toolCallId: event.payload.toolCallId } : {}), ...(event.payload.mentionedClasses?.length ? { mentionedClasses: event.payload.mentionedClasses } : {}) },
+  const mentions = event.payload.mentionedSymbols ?? event.payload.mentionedClasses
+  return storedChangeSchema.parse({
+    v: version, id: event.id, sessionId: event.sessionId, seq, ts: event.ts,
+    cause: { kind: 'tool', eventId: event.id, tool: event.payload.tool, ...(event.payload.toolCallId ? { toolCallId: event.payload.toolCallId } : {}), ...(mentions?.length ? { mentionedClasses: mentions } : {}) },
     summary: summarize(delta, files.length), files, delta
   })
 }
 
-export function replay(frames: ReplayFrame[], extractor: LanguageExtractor): Change[] {
+export function replay(frames: ReplayFrame[], registry: LanguageExtractor | LanguageExtractor[]): Change[] {
+  const extractors = Array.isArray(registry) ? registry : [registry]
   const sessions = new Map<string, { sources: Map<string, string>; model: CodeModel; seq: number; eventSeq: number }>()
   const seen = new Set<string>()
   const changes: Change[] = []
   for (const frame of frames) {
-    const probe = new CopilotAdapter({ workspaceRoot: '<workspace>', workspaceId: 'capture-workspace', seq: 0 }).normalize(frame.raw)
+    const probe = normalizeHook(frame.raw, { workspaceRoot: '<workspace>', workspaceId: 'capture-workspace', seq: 0 })
     if (!probe.ok) throw new Error(probe.error)
     for (const event of probe.events) {
       if (seen.has(event.id)) continue
@@ -64,7 +69,7 @@ export function replay(frames: ReplayFrame[], extractor: LanguageExtractor): Cha
       if (!state) {
         const snapshot = frame.files.map((file) => ({ path: file.path, text: event.kind === 'edit.applied' ? file.after : file.before }))
         const sources = new Map(snapshot.filter((file) => file.text !== null).map((file) => [file.path, file.text ?? '']))
-        const model = assembleModel([...sources].filter(([path]) => extractor.matches(path)).map(([path, text]) => extractor.extract(path, text)))
+        const model = analyzeSources(sources, extractors)
         state = { sources, model, seq: 0, eventSeq: 0 }
         sessions.set(event.sessionId, state)
         changes.push(changeSchema.parse({
@@ -87,7 +92,7 @@ export function replay(frames: ReplayFrame[], extractor: LanguageExtractor): Cha
         if (pair.after === null) state.sources.delete(pair.path)
         else state.sources.set(pair.path, pair.after)
       }
-      const after = assembleModel([...state.sources].filter(([path]) => extractor.matches(path)).map(([path, text]) => extractor.extract(path, text)))
+      const after = analyzeSources(state.sources, extractors)
       changes.push(createChange({ ...event, seq: state.eventSeq }, ++state.seq, state.model, after, pairs))
       state.model = after
     }

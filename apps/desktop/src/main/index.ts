@@ -5,9 +5,8 @@ import { app, BrowserWindow, dialog, ipcMain, type IpcMainInvokeEvent } from 'el
 import { dataFolder, removeOwnedRuntime, writeJsonAtomic } from '@visor/bridge/node'
 import { listPendingHooks, readPendingHook, removePendingHook } from '@visor/bridge/pending'
 import { methodCodeRequestSchema, rawHookSchema } from '@visor/bridge'
-import Parser from 'web-tree-sitter'
-import { contentHash, methodCode, PythonExtractor } from '@visor/core'
-import { openDatabase, SqliteChangeStore } from '@visor/store'
+import { contentHash, loadSourceParsers, methodCode, referencePositions } from '@visor/core'
+import { openDatabase, SqliteChangeStore, type StoredChange } from '@visor/store'
 import { HookMonitor } from './hook-monitor'
 import { startHookServer } from './hook-server'
 import { ChangePipeline } from './change-pipeline'
@@ -21,12 +20,16 @@ let window: BrowserWindow | null = null
 let server: Awaited<ReturnType<typeof startHookServer>> | null = null
 let monitor: HookMonitor | null = null
 let database: ReturnType<typeof openDatabase> | null = null
-let parser: Parser | null = null
+let parsers: Awaited<ReturnType<typeof loadSourceParsers>> | null = null
 let pipeline: ChangePipeline | null = null
 let shuttingDown = false
 
 function focusWindow(): void {
-  if (!window || window.isDestroyed()) return
+  if (shuttingDown) return
+  if (!window || window.isDestroyed()) {
+    if (server && monitor) createWindow()
+    return
+  }
   if (window.isMinimized()) window.restore()
   window.show()
   window.focus()
@@ -75,12 +78,10 @@ if (!app.requestSingleInstanceLock()) {
     const nativeRoot = dirname(require.resolve('better-sqlite3/package.json'))
     database = openDatabase(join(folder, 'visor.db'), join(nativeRoot, `build/visor-electron-${process.versions.modules}`, 'better_sqlite3.node'))
     const store = new SqliteChangeStore(database, ['001_initial', '002_indexes', '003_semantic'].map((name, index) => ({ version: index + 1, sql: readFileSync(require.resolve(`@visor/store/migrations/${name}.sql`), 'utf8') })))
-    await Parser.init()
-    parser = new Parser()
-    parser.setLanguage(await Parser.Language.load(require.resolve('tree-sitter-wasms/out/tree-sitter-python.wasm')))
-    const extractor = new PythonExtractor(parser)
+    const registry = await loadSourceParsers((grammar) => require.resolve(`tree-sitter-wasms/out/tree-sitter-${grammar}.wasm`))
+    parsers = registry
     pipeline = new ChangePipeline({
-      store, extractors: [extractor],
+      store, extractors: registry.extractors,
       onNormalized: (events, error) => {
         if (error) console.warn(`[Visor] ${error}`)
         monitor?.recordNormalization(events, error ?? null)
@@ -109,8 +110,8 @@ if (!app.requestSingleInstanceLock()) {
         if (!snapshotPolicy(root)(document.file) || !store.hasSourceVersion(root, document.file, document.hash)) return null
         const text = store.getBlob(document.hash)
         if (text === null) return null
-        const positions = extractor.extract(document.file, text).analysis?.relations.flatMap((relation) => [relation.from, relation.to].flatMap((reference) => reference.range && !reference.name.startsWith('py:') ? [reference.range.start] : [])) ?? []
-        return positions.filter((position, index) => positions.findIndex((candidate) => candidate.line === position.line && candidate.column === position.column) === index).slice(0, 512)
+        const extractor = registry.extractors.find((candidate) => candidate.matches(document.file))
+        return extractor ? referencePositions(extractor.extract(document.file, text)) : []
       } catch { return null }
     }, onSemantic: (document) => {
       try {
@@ -153,33 +154,34 @@ if (!app.requestSingleInstanceLock()) {
       if (typeof sessionId !== 'string' || !sessionId || sessionId.length > 512) throw new Error('Invalid session identity.')
       return pipeline?.listChanges(sessionId) ?? []
     })
+    const readSnapshot = (stored: StoredChange | null) => stored && (pipeline?.snapshot(stored) ?? stored)
     ipcMain.handle('visor:history:get', (event, id: unknown) => {
       requireRenderer(event)
-      const stored = store.getChange(rawHookSchema.shape.id.parse(id))
-      return stored ? pipeline?.snapshot(stored) ?? stored : null
+      return readSnapshot(store.getChange(rawHookSchema.shape.id.parse(id)))
     })
     ipcMain.handle('visor:history:method', (event, request: unknown) => {
       requireRenderer(event)
       const { changeId, methodId } = methodCodeRequestSchema.parse(request)
-      const raw = store.getChange(changeId)
-      const selected = raw ? pipeline?.snapshot(raw) ?? raw : null
+      const selected = readSnapshot(store.getChange(changeId))
       if (!selected) return null
       const { change, model } = selected
-      const previous = change.cause.kind === 'baseline' ? selected : store.previousChange(change.sessionId, change.seq)
+      const previous = change.cause.kind === 'baseline' ? selected : readSnapshot(store.previousChange(change.sessionId, change.seq))
       const afterOwner = model.classes.find((symbol) => symbol.methods.some((method) => method.id === methodId))
       const beforeOwner = previous?.model.classes.find((symbol) => symbol.methods.some((method) => method.id === methodId))
-      const file = afterOwner?.file ?? beforeOwner?.file
-      if (!file) return null
       let beforeMethod = beforeOwner?.methods.find((method) => method.id === methodId)
       const afterMethod = afterOwner?.methods.find((method) => method.id === methodId)
       for (const delta of change.delta) {
         if (delta.op === 'member.change' && delta.before.kind === 'method' && delta.before.id === methodId) beforeMethod = delta.before
         if (delta.op === 'member.remove' && delta.member.kind === 'method' && delta.member.id === methodId) beforeMethod = delta.member
       }
-      const affected = change.files.find((entry) => entry.path === file)
-      const beforeText = change.cause.kind === 'baseline' ? store.sourceAtChange(change.sessionId, change.seq, file)
-        : affected ? affected.beforeHash === null ? null : store.getBlob(affected.beforeHash) : store.sourceAtChange(change.sessionId, change.seq - 1, file)
-      const afterText = store.sourceAtChange(change.sessionId, change.seq, file)
+      const beforeFile = beforeMethod?.locations?.find((location) => location.role === 'definition')?.file ?? beforeMethod?.locations?.[0]?.file ?? beforeOwner?.file
+      const afterFile = afterMethod?.locations?.find((location) => location.role === 'definition')?.file ?? afterMethod?.locations?.[0]?.file ?? afterOwner?.file
+      const file = afterFile ?? beforeFile
+      if (!file) return null
+      const affected = change.files.find((entry) => entry.path === beforeFile)
+      const beforeText = !beforeFile ? null : change.cause.kind === 'baseline' ? store.sourceAtChange(change.sessionId, change.seq, beforeFile)
+        : affected ? affected.beforeHash === null ? null : store.getBlob(affected.beforeHash) : store.sourceAtChange(change.sessionId, change.seq - 1, beforeFile)
+      const afterText = afterFile ? store.sourceAtChange(change.sessionId, change.seq, afterFile) : null
       return methodCode({ file,
         before: beforeMethod?.range && beforeText !== null ? { text: beforeText, range: beforeMethod.range } : null,
         after: afterMethod?.range && afterText !== null ? { text: afterText, range: afterMethod.range } : null
@@ -187,13 +189,10 @@ if (!app.requestSingleInstanceLock()) {
     })
     createWindow()
     await writeJsonAtomic(join(folder, 'runtime.json'), server.runtime)
-    app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) createWindow()
-      else focusWindow()
-    })
+    app.on('activate', focusWindow)
   }).catch(() => {
     database?.close()
-    parser?.delete()
+    parsers?.dispose()
     dialog.showErrorBox('Visor startup failed', 'The local database or hook server could not start. Check access to the Visor data folder and run pnpm rebuild:sqlite after changing Electron versions.')
     app.quit()
   })
@@ -208,7 +207,7 @@ if (!app.requestSingleInstanceLock()) {
       await pipeline?.flush()
       await monitor?.flush()
       database?.close()
-      parser?.delete()
+      parsers?.dispose()
       await removeOwnedRuntime(folder, ownedServer.runtime)
     })().catch(() => {}).finally(() => app.quit())
   })

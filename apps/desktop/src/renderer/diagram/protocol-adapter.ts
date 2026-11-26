@@ -1,4 +1,4 @@
-import type { Change, CodeModel, MethodSymbol, Relation } from '@visor/protocol'
+import { graphLanguageSchema, type Change, type ClassSymbol, type CodeModel, type FieldSymbol, type MethodSymbol, type Relation, type SourceRange } from '@visor/protocol'
 import type { DiagramChange, DiagramEdge, DiagramView } from './types'
 
 export interface DiagramHistoryEntry {
@@ -22,6 +22,7 @@ function projectDiagramView(model: CodeModel, change: Change | null, scope?: Rea
   const addedMembers = new Set<string>()
   const modifiedMembers = new Set<string>()
   const removedMembers = new Map<string, MethodSymbol[]>()
+  const removedFields = new Map<string, FieldSymbol[]>()
   const relations = new Map<string, { relation: Relation; change: DiagramEdge['change'] }>(model.relations.map((relation) => [relationId(relation), { relation, change: 'unchanged' }]))
   for (const delta of change?.delta ?? []) {
     switch (delta.op) {
@@ -45,6 +46,10 @@ function projectDiagramView(model: CodeModel, change: Change | null, scope?: Rea
           const members = removedMembers.get(delta.classId) ?? []
           members.push(structuredClone(delta.member))
           removedMembers.set(delta.classId, members)
+        } else {
+          const fields = removedFields.get(delta.classId) ?? []
+          fields.push(delta.member)
+          removedFields.set(delta.classId, fields)
         }
         modifiedClasses.add(delta.classId)
         break
@@ -66,27 +71,34 @@ function projectDiagramView(model: CodeModel, change: Change | null, scope?: Rea
     }
   }
   const owners = new Map<string, string>()
-  const classesByFile = new Map<string, CodeModel['classes']>()
+  const methodNames = new Map<string, string>()
+  const classesByFile = new Map<string, { symbol: ClassSymbol; range: SourceRange }[]>()
   for (const symbol of classes.values()) {
     owners.set(symbol.id, symbol.id)
-    for (const member of [...symbol.methods, ...symbol.fields]) owners.set(member.id, symbol.id)
+    for (const member of [...symbol.methods, ...symbol.fields]) {
+      owners.set(member.id, symbol.id)
+      if (member.kind === 'method') methodNames.set(member.id, member.name)
+    }
     if (!removedClasses.has(symbol.id)) {
-      const siblings = classesByFile.get(symbol.file) ?? []
-      siblings.push(symbol)
-      classesByFile.set(symbol.file, siblings)
+      const locations = [...symbol.locations ?? [{ file: symbol.file, range: symbol.range }], ...[...symbol.methods, ...symbol.fields].flatMap((member) => member.locations ?? [])]
+      for (const { file, range } of locations) {
+        if (!range) continue
+        const siblings = classesByFile.get(file) ?? []
+        siblings.push({ symbol, range }); classesByFile.set(file, siblings)
+      }
     }
   }
   const touchLine = (file: string, line: number, deleted = false): void => {
-    let closest: CodeModel['classes'][number] | undefined
+    let closest: { symbol: ClassSymbol; range: SourceRange } | undefined
     let smallestSpan = Infinity
-    for (const symbol of classesByFile.get(file) ?? []) {
-      const range = symbol.range
-      if (!range || line < range.start.line || line > range.end.line || (line === range.end.line && range.end.column === 0)) continue
+    for (const entry of classesByFile.get(file) ?? []) {
+      const range = entry.range
+      if (line < range.start.line || line > range.end.line || (line === range.end.line && range.end.column === 0)) continue
       const span = range.end.line - range.start.line
-      if (span < smallestSpan) { closest = symbol; smallestSpan = span }
+      if (span < smallestSpan) { closest = entry; smallestSpan = span }
     }
     if (deleted && closest?.range?.start.line === line) { touchLine(file, line - 1); return }
-    if (closest) modifiedClasses.add(closest.id)
+    if (closest) modifiedClasses.add(closest.symbol.id)
   }
   const touchedFiles = new Set(change?.files.map((file) => file.path))
   for (const delta of change?.delta ?? []) {
@@ -129,20 +141,37 @@ function projectDiagramView(model: CodeModel, change: Change | null, scope?: Rea
     classes: [...classes.values()].filter((symbol) => visibleClasses.has(symbol.id)).map((symbol) => {
       const removed = removedMembers.get(symbol.id) ?? []
       const removedIds = new Set(removed.map((method) => method.id))
+      const deletedFields = removedFields.get(symbol.id) ?? []
+      const deletedFieldIds = new Set(deletedFields.map((field) => field.id))
+      const changedMembers = [...symbol.methods, ...symbol.fields].filter((member) => addedMembers.has(member.id) || modifiedMembers.has(member.id))
+      const editFiles = new Set([...changedMembers, ...removed, ...deletedFields].flatMap((member) => member.locations ?? [])
+        .map((location) => location.file).filter((file) => touchedFiles.has(file)))
       return {
-        id: symbol.id, name: symbol.name, file: symbol.file, kind: symbol.kind,
+        id: symbol.id, name: symbol.name, file: [...editFiles].join(', ') || symbol.file, kind: symbol.kind, language: graphLanguageSchema.parse(symbol.id.split(':', 1)[0]),
         change: removedClasses.has(symbol.id) ? 'deleted' : addedClasses.has(symbol.id) ? 'added' : modifiedClasses.has(symbol.id) ? 'modified' : 'unchanged',
+        fields: [...symbol.fields.filter((field) => !deletedFieldIds.has(field.id)), ...deletedFields].map((field) => ({
+          id: field.id, name: field.name, type: field.type, change: removedClasses.has(symbol.id) || deletedFieldIds.has(field.id) ? 'deleted' : addedClasses.has(symbol.id) || addedMembers.has(field.id) ? 'added' : modifiedMembers.has(field.id) ? 'modified' : 'unchanged'
+        })),
         methods: [...symbol.methods.filter((method) => !removedIds.has(method.id)), ...removed].map((method) => ({
-          id: method.id, name: method.displayName ?? method.name, signature: method.signature, docstring: method.docstring,
+          id: method.id, name: method.displayName ?? (symbol.methods.some((other) => other.id !== method.id && other.name === method.name) ? method.signature : method.name), signature: method.signature, docstring: method.docstring,
           change: removedClasses.has(symbol.id) || removedIds.has(method.id) ? 'deleted' : addedClasses.has(symbol.id) || addedMembers.has(method.id) ? 'added' : 'unchanged',
           modified: modifiedMembers.has(method.id), changeId: change?.id
         }))
       }
     }),
-    edges: [...relations.entries()].flatMap(([id, entry]) => {
-      const from = owners.get(entry.relation.from)
-      const to = owners.get(entry.relation.to)
-      return from && to && visibleClasses.has(from) && visibleClasses.has(to) ? [{ id, from, to, label: entry.relation.label ?? entry.relation.kind, kind: entry.relation.kind, certainty: entry.relation.certainty, evidence: entry.relation.evidence, change: entry.change }] : []
+    edges: [...relations.entries()].flatMap(([id, { relation, change }]) => {
+      const from = owners.get(relation.from)
+      const to = owners.get(relation.to)
+      if (!from || !to || !visibleClasses.has(from) || !visibleClasses.has(to)) return []
+      let label = relation.label ?? relation.kind
+      if (relation.kind === 'calls') {
+        if (from === to) return []
+        if (label === 'calls') {
+          const method = methodNames.get(relation.to)
+          label = method ? `Calls ${method}()` : 'Calls'
+        }
+      }
+      return [{ id, from, to, label, kind: relation.kind, certainty: relation.certainty, evidence: relation.evidence, change }]
     })
   }
 }

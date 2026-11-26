@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { methodCodeSchema, type MethodCode } from '@visor/bridge'
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
 import { Box, FileCode, Minus, Plus } from 'lucide-react'
-import type { DiagramClass, DiagramMethod } from '../diagram/types'
+import { languageLabels, type DiagramClass, type DiagramMethod } from '../diagram/types'
 
 export type ClassFlowNode = Node<{ symbol: DiagramClass }, 'class'>
 
@@ -122,14 +122,20 @@ function MethodRow({ method }: { method: DiagramMethod }) {
 export function ClassNode({ data, selected }: NodeProps<ClassFlowNode>) {
   const { symbol } = data
   const module = symbol.kind === 'module'
+  const kind = symbol.kind ?? 'class'
   return (
-    <article className={`class-node class-${symbol.change ?? 'unchanged'} ${selected ? 'class-selected' : ''}`} data-testid="class-node" data-change={symbol.change ?? 'unchanged'} aria-label={`${symbol.name} ${module ? 'module' : 'class'}`}>
+    <article className={`class-node class-${symbol.change ?? 'unchanged'} ${selected ? 'class-selected' : ''}`} data-testid="class-node" data-change={symbol.change ?? 'unchanged'} aria-label={`${symbol.name} ${kind}`}>
       <Handle type="target" position={Position.Left} />
       <header className="class-heading">
-        <span className="class-kind">{module ? <FileCode size={13} strokeWidth={1.7} /> : <Box size={13} strokeWidth={1.7} />} {module ? 'MODULE' : 'CLASS'} <span>PY</span></span>
+        <span className="class-kind">{module ? <FileCode size={13} strokeWidth={1.7} /> : <Box size={13} strokeWidth={1.7} />} {kind.toUpperCase()} <span>{languageLabels[symbol.language ?? 'py'][0]}</span></span>
         <h2>{symbol.name}</h2>
-        <span className="class-file">{symbol.file}</span>
+        <span className="class-file" title={symbol.file}>{symbol.file}</span>
       </header>
+      {!!symbol.fields?.length && <ul className="symbol-fields nowheel nodrag" aria-label="Fields and properties">
+        {symbol.fields.map((field) => <li key={field.id} data-change={field.change} title={`${field.name}${field.type ? `: ${field.type}` : ''}`}>
+          <span>{field.name}</span>{field.type && <small>{field.type}</small>}
+        </li>)}
+      </ul>}
       <div className="class-methods">
         {symbol.methods.map((method) => <MethodRow key={method.id} method={method} />)}
       </div>

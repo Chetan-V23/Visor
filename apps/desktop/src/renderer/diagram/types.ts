@@ -1,4 +1,6 @@
-import type { ClassSymbol, Relation } from '@visor/protocol'
+import type { ClassSymbol, GraphLanguage, Relation } from '@visor/protocol'
+
+export const languageLabels = { py: ['PY', 'Python'], cpp: ['C++', 'C++'], cs: ['C#', 'C#'], js: ['JS', 'JavaScript'], ts: ['TS', 'TypeScript'] } as const
 
 export type TextChange = 'unchanged' | 'added' | 'deleted'
 
@@ -17,7 +19,9 @@ export interface DiagramClass {
   name: string
   file: string
   kind?: ClassSymbol['kind']
+  language?: GraphLanguage
   methods: DiagramMethod[]
+  fields?: { id: string; name: string; type: string | null; change: TextChange | 'modified' }[]
   change?: TextChange | 'modified'
 }
 

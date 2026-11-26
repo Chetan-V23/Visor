@@ -1,4 +1,14 @@
-# Visor protocol v1
+# Visor graph and history formats
+
+## Version 2 graph snapshots
+
+New SQLite `model_after_json` rows contain `{ v: 2, symbols, relations }`. Each symbol has a language, a kind, an ID, an optional owner represented by `ownerId`, and one or more workspace-relative locations. A location identifies a declaration or definition. Relations refer to symbol IDs; a missing target is not a graph edge. The diagram groups callables and fields by owner without changing their IDs.
+
+JS and TS IDs use the module file as scope. C# and C++ use project and lexical scope, including overload parameter types. Locations can move without changing an ID. For example, `cpp:@workspace::Calc.get(int) const` can have a declaration in `calc.hpp` and a definition in `calc.cpp`. A body edit shows `calc.cpp` on the class card. Hovering over the method shows the saved implementation. A rename or an overload identity change can appear as a removal and an addition.
+
+The optional `analysisVersion` identifies the analyzer that built a graph, independently of the storage format `v`. When an older C++ graph has saved source, the desktop app can rebuild its diagram and method changes from those snapshots. It does not read the current working files or rewrite the stored graph.
+
+The store reads each snapshot by its version without migrating existing rows. It accepts both v1 and v2 change documents. Hook envelopes remain v1; the optional `mentionedSymbols` field carries resolved non-Python IDs. The [schemas](src/index.ts) and [projection](src/projection.ts) define the storage and diagram boundaries. The following sections describe the original v1 contracts, which remain readable.
 
 This package defines the documents that Visor stores and projects into its UI. It implements Step 3 of the [build plan](../../BUILD_PLAN.md), using the real Step 2 captures and decisions D1-D7 in the [feasibility report](../../FEASIBILITY_REPORT.md).
 

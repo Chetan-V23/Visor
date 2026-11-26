@@ -1,7 +1,18 @@
 import { posix } from 'node:path'
-import { codeModelSchema, type ClassSymbol, type CodeModel, type FileModel, type GraphDelta, type Relation, type SemanticDocument, type SymbolReference } from '@visor/protocol'
+import { codeModelSchema, modelFromGraph, type ClassSymbol, type CodeModel, type FileModel, type GraphDelta, type Relation, type SemanticDocument, type SymbolFile, type SymbolReference } from '@visor/protocol'
+import { linkSymbols } from './link-symbols'
 
-export function assembleModel(files: FileModel[], semantic: SemanticDocument[] = []): CodeModel {
+export const SOURCE_ANALYSIS_VERSION = 2
+
+export function assembleModel(files: (FileModel | SymbolFile)[], semantic: SemanticDocument[] = []): CodeModel {
+  const legacy = assemblePython(files.filter((file) => file.v === 1), semantic)
+  const other = files.filter((file) => file.v === 2)
+  if (!other.length) return legacy
+  const graph = modelFromGraph(linkSymbols(other, semantic))
+  return { v: 2, analysisVersion: SOURCE_ANALYSIS_VERSION, classes: [...legacy.classes, ...graph.classes], relations: [...legacy.relations, ...graph.relations] }
+}
+
+function assemblePython(files: FileModel[], semantic: SemanticDocument[]): CodeModel {
   const classes = files.flatMap((file) => [
     ...file.classes,
     ...(file.functions.length ? [{
@@ -101,10 +112,10 @@ export function diffModels(before: CodeModel, after: CodeModel): GraphDelta[] {
       const previous = oldMembers.get(member.id)
       if (!previous || previous.kind !== member.kind) delta.push({ v: 1, op: 'member.add', classId: node.id, member })
       else {
-        const { range: oldRange, ...oldContent } = previous
-        const { range: newRange, ...newContent } = member
-        void oldRange
-        void newRange
+        const { range: oldRange, locations: oldLocations, ...oldContent } = previous
+        const { range: newRange, locations: newLocations, ...newContent } = member
+        void oldRange; void oldLocations
+        void newRange; void newLocations
         if (JSON.stringify(oldContent) !== JSON.stringify(newContent)) delta.push({ v: 1, op: 'member.change', classId: node.id, before: previous, after: member })
       }
     }
@@ -113,14 +124,14 @@ export function diffModels(before: CodeModel, after: CodeModel): GraphDelta[] {
   const newEdges = new Map(after.relations.map((edge) => [relationKey(edge), edge]))
   for (const [key, relation] of oldEdges) if (!newEdges.has(key)) delta.push({ v: 1, op: 'edge.remove', relation })
   for (const [key, relation] of newEdges) if (!oldEdges.has(key)) delta.push({ v: 1, op: 'edge.add', relation })
-  return delta
+  return before.v === 2 || after.v === 2 ? delta.map((entry) => ({ ...entry, v: 2 })) : delta
 }
 
 export function summarize(delta: GraphDelta[], fileCount: number): string {
   const added = delta.filter((item) => item.op === 'node.add')
-  if (added.length) return `Added ${added.length === 1 ? `${added[0]?.node.kind === 'module' ? 'module' : 'class'} ${added[0]?.node.name}` : `${added.length} ${added.some((item) => item.node.kind === 'module') ? 'nodes' : 'classes'}`}`
+  if (added.length) return `Added ${added.length === 1 ? `${added[0]?.node.kind ?? 'class'} ${added[0]?.node.name}` : `${added.length} ${added.some((item) => item.node.kind && item.node.kind !== 'class') ? 'nodes' : 'classes'}`}`
   const removed = delta.filter((item) => item.op === 'node.remove')
-  if (removed.length) return `Removed ${removed.length === 1 ? `${removed[0]?.node.kind === 'module' ? 'module' : 'class'} ${removed[0]?.node.name}` : `${removed.length} ${removed.some((item) => item.node.kind === 'module') ? 'nodes' : 'classes'}`}`
+  if (removed.length) return `Removed ${removed.length === 1 ? `${removed[0]?.node.kind ?? 'class'} ${removed[0]?.node.name}` : `${removed.length} ${removed.some((item) => item.node.kind && item.node.kind !== 'class') ? 'nodes' : 'classes'}`}`
   const member = delta.find((item) => item.op === 'member.change' || item.op === 'member.add' || item.op === 'member.remove')
   if (member && (member.op === 'member.change' || member.op === 'member.add' || member.op === 'member.remove')) {
     const name = member.op === 'member.change' ? member.after.id : member.member.id

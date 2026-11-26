@@ -2,7 +2,7 @@ import * as vscode from 'vscode'
 import { createHash } from 'node:crypto'
 import { relative } from 'node:path'
 import { dataFolder, readRuntime } from '@visor/bridge/node'
-import { pathSchema, semanticQueryResponseSchema, semanticDocumentSchema, type SemanticDocument } from '@visor/protocol'
+import { grammarForFile, pathSchema, semanticQueryResponseSchema, semanticDocumentSchema, sourceGlob, type SemanticDocument } from '@visor/protocol'
 
 function hash(text: string): string { return createHash('sha256').update(text).digest('hex') }
 function localPath(root: vscode.WorkspaceFolder, uri: vscode.Uri): string | null {
@@ -23,7 +23,8 @@ export function activate(context: vscode.ExtensionContext): void {
     if (disposed) return
     if (busy.has(key)) { pending.set(key, uri); return }
     const root = vscode.workspace.getWorkspaceFolder(uri)
-    if (!root || uri.scheme !== 'file' || !uri.path.endsWith('.py')) return
+    const grammar = grammarForFile(uri.path)
+    if (!root || uri.scheme !== 'file' || !grammar) return
     busy.add(key)
     try {
       const configured = vscode.workspace.getConfiguration('visor').get<string>('dataFolder', '')
@@ -59,7 +60,7 @@ export function activate(context: vscode.ExtensionContext): void {
         if (disposed || document.version !== version || document.isDirty) return
         if (Date.now() >= deadline) break
         const point = new vscode.Position(position.line - 1, position.column)
-        const types = await lookup('vscode.executeTypeDefinitionProvider', point)
+        const types = grammar === 'python' ? await lookup('vscode.executeTypeDefinitionProvider', point) : []
         const locations = types.length ? types : await lookup('vscode.executeDefinitionProvider', point)
         const targets: SemanticDocument['definitions'][number]['targets'] = []
         for (const location of locations.slice(0, 32)) {
@@ -94,11 +95,11 @@ export function activate(context: vscode.ExtensionContext): void {
     if (previous) clearTimeout(previous)
     timers.set(key, setTimeout(() => { timers.delete(key); void update(uri) }, 800))
   }
-  const watcher = vscode.workspace.createFileSystemWatcher('**/*.py')
+  const watcher = vscode.workspace.createFileSystemWatcher(sourceGlob)
   context.subscriptions.push(output, watcher, watcher.onDidChange(schedule), watcher.onDidCreate(schedule),
     vscode.workspace.onDidSaveTextDocument((document) => schedule(document.uri)),
     vscode.commands.registerCommand('visor.refreshRelations', async () => {
-      const files = await vscode.workspace.findFiles('**/*.py', '**/{.git,node_modules,.venv,venv}/**', 500)
+      const files = await vscode.workspace.findFiles(sourceGlob, '**/{.git,node_modules,.venv,venv,bin,obj,out,dist,build,.vs,.next}/**', 500)
       await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: 'Refreshing Visor relationships', cancellable: true }, async (progress, cancellation) => {
         for (const uri of files) {
           if (disposed || cancellation.isCancellationRequested) return

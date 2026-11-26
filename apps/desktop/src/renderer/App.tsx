@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { HookSnapshot } from '@visor/bridge'
+import { hookProviders, isHookProvider, type HookSnapshot } from '@visor/bridge'
 import { motion, useReducedMotion } from 'framer-motion'
 import { Box, ChevronRight, FileCode2, Folder, GitBranch, Settings2 } from 'lucide-react'
 import type { DiagramSource } from './diagram/types'
@@ -15,6 +15,8 @@ export function App({ source }: { source: DiagramSource }) {
   const reducedMotion = useReducedMotion()
   const selectedChange = view.changes.find((change) => change.id === selectedId)
   const changeCount = view.changes.filter((change) => change.number > 0).length
+  const sessionSource = history.session?.source ?? (history.preview ? 'copilot' : '')
+  const providerLabel = isHookProvider(sessionSource) ? hookProviders[sessionSource].label : sessionSource
   const selectedLabel = selectedChange?.number === 0 ? 'Baseline' : selectedChange ? `Change ${selectedChange.number}` : 'Session'
 
   useEffect(() => {
@@ -63,7 +65,7 @@ export function App({ source }: { source: DiagramSource }) {
         <header className="session-header">
           <div className="session-breadcrumb"><span>Sessions</span><ChevronRight size={13} /><span>{view.session.project}</span>{history.preview && <span className="sample-label">Sample session</span>}</div>
           <div className="session-title"><h1 title={view.session.name}>{view.session.name}</h1>{view.session.branch && <span className="branch"><GitBranch size={14} />{view.session.branch}</span>}</div>
-          <div className="session-meta"><span>GitHub Copilot</span>{history.session && <><span aria-hidden="true">/</span><time>{new Date(history.session.startedAt).toLocaleDateString()}</time></>}<span aria-hidden="true">/</span><span>{changeCount} {changeCount === 1 ? 'change' : 'changes'}</span>{history.loading && <span role="status">Loading</span>}</div>
+          <div className="session-meta">{providerLabel && <><span>{providerLabel}</span><span aria-hidden="true">/</span></>}{history.session && <><time>{new Date(history.session.startedAt).toLocaleDateString()}</time><span aria-hidden="true">/</span></>}<span>{changeCount} {changeCount === 1 ? 'change' : 'changes'}</span>{history.loading && <span role="status">Loading</span>}</div>
           {history.error && <p role="alert" className="history-error">{history.error}</p>}
         </header>
         <motion.div className="diagram-region" initial={reducedMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>

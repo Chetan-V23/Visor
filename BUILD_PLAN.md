@@ -8,6 +8,8 @@ Steps 1 through 6 are implemented. The native app uses actual Python snapshots a
 
 The relationship follow-up adds source-backed ownership, associations, dependencies, static signal subscriptions, and hash-matched IDE definition facts. Dagre now supplies positions, routes, and label space. The [companion](apps/companion/README.md) packages as a local VSIX; live Pylance verification remains separate. Step 7 transition choreography is not implemented.
 
+The language follow-up ships static JS, TS, JSX, TSX, C#, and C++ analysis alongside Python. A v2 symbol graph represents native overloads and multiple declarations. Capture, CLI replay, the diagram, and SQLite history use the same language registry. Existing v1 rows remain readable. See [supported languages](README.md#supported-languages) for project-scope rules and limits.
+
 ## Assumptions
 
 - **Desktop shell: Electron.** The report recommends it (open question 3). Electron runs the Node server in its main process, so one app holds the server, the database, and the UI. If you pick Tauri instead, steps 1, 2, and 5 change.
@@ -343,5 +345,5 @@ These features come from the report's decisions. Each one follows the same patte
 1. **Code-level view (D5).** Click a class to see its code changes, with the gap-and-slide line animation.
 2. **Companion VS Code extension and data flow (D2, D5).** Capture edits from the editor, and add call, type, and composition edges from the language servers.
 3. **History repository (D7).** A git-based `SnapshotStore` and a view that compares a session's start and end.
-4. **C++, then C# (D3).** One `LanguageExtractor` for each language, plus its merge rules: header and source files for C++, partial classes for C#.
+4. **C++ and C# (D3).** Source-level analyzers and merge rules shipped before step 7. Build-target evaluation, template instantiation, and XAML binding analysis remain outside the initial implementation.
 5. **Steering and bug fixes.** Approve or deny edits through pre-tool hooks, and send fix prompts to Copilot Chat.

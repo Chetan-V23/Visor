@@ -7,7 +7,7 @@ Date: 2026-11-06
 
 Steps 1 through 6 now run in Electron with Python source snapshots and SQLite history. The relationship follow-up adds inferred ownership, associations, dependencies, and static signal subscriptions. Visor owns graph classification and historical snapshots. A local VS Code companion supplies definition locations only for matching saved source and target hashes.
 
-The current analyzer supports Python, not C++ or C#. Dynamic event delivery, transition choreography, editor-only change capture, and the dedicated history repository remain future work. The companion builds and packages, but a live Pylance extension-host run remains unverified. See [README.md](README.md) for supported evidence and verification commands.
+The analyzer now supports Python, JavaScript, TypeScript (including JSX and TSX syntax for their respective languages), C#, and C++. New snapshots use a versioned symbol graph with multiple source locations and overload-aware native IDs. Dynamic event delivery, transition choreography, editor-only change capture, and the dedicated history repository remain future work. Live language-provider runs in a VS Code extension host remain unverified. See [supported languages](README.md#supported-languages) for the limits of static analysis.
 
 ---
 

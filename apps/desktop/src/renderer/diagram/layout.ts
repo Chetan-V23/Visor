@@ -8,7 +8,7 @@ export function layout(view: DiagramView): { positions: Map<string, Position>; r
   const graph = new dagre.graphlib.Graph({ multigraph: true })
   graph.setGraph({ rankdir: 'LR', ranksep: 160, nodesep: 90, edgesep: 50, marginx: 20, marginy: 20 })
   graph.setDefaultEdgeLabel(() => ({}))
-  for (const symbol of view.classes) graph.setNode(symbol.id, { width: 270, height: 140 + symbol.methods.length * 40 })
+  for (const symbol of view.classes) graph.setNode(symbol.id, { width: 270, height: 140 + symbol.methods.length * 40 + Math.min(symbol.fields?.length ?? 0, 3) * 28 })
   for (const edge of view.edges) if (graph.hasNode(edge.from) && graph.hasNode(edge.to)) graph.setEdge(edge.from, edge.to, { width: 230, height: 44, labelpos: 'c' }, edge.id)
   dagre.layout(graph)
   const positions = new Map(view.classes.map((symbol) => {

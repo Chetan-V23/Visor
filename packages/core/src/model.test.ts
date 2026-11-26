@@ -1,8 +1,8 @@
 import { expect, it } from 'vitest'
-import { graphDeltaSchema, type ClassSymbol, type CodeModel, type Relation } from '@visor/protocol'
+import { graphDeltaSchema, type CodeModel, type FileModel, type Relation } from '@visor/protocol'
 import { assembleModel, diffModels, summarize } from './model'
 
-const symbol = (name: string): ClassSymbol => ({ id: `py:a.py::${name}`, name, file: 'a.py', range: null, bases: [], methods: [], fields: [] })
+const symbol = (name: string): FileModel['classes'][number] => ({ id: `py:a.py::${name}`, name, file: 'a.py', range: null, bases: [], methods: [], fields: [] })
 const edge = (from: string, to: string): Relation => ({ from: `py:a.py::${from}`, to: `py:a.py::${to}`, kind: 'inherits', certainty: 'declared' })
 const model = (names: string[], relations: Relation[] = []): CodeModel => ({ v: 1, classes: names.map(symbol), relations })
 

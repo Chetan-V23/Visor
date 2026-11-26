@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { contentHash, createChange } from '@visor/core'
+import { contentHash, createChange, loadSourceParsers } from '@visor/core'
 import { createRequire } from 'node:module'
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -8,7 +8,7 @@ import { afterAll, afterEach, beforeAll, expect, it } from 'vitest'
 import type { RawHook } from '@visor/bridge'
 import { listPendingHooks, readPendingHook, removePendingHook, savePendingHook } from '@visor/bridge/pending'
 import { openDatabase, SqliteChangeStore, type Migration, type StoredChange } from '@visor/store'
-import { type VisorEvent } from '@visor/protocol'
+import { codeModelSchema, type LanguageExtractor, type VisorEvent } from '@visor/protocol'
 import { pythonParser } from '../../../cli/src/fixtures'
 import { ChangePipeline } from './change-pipeline'
 import { readSource } from '@visor/bridge/workspace'
@@ -25,7 +25,7 @@ afterEach(async () => {
   await Promise.all(folders.splice(0).map((folder) => rm(folder, { recursive: true, force: true })))
 })
 
-async function setup() {
+async function setup(extractors: LanguageExtractor[] = [python.extractor]) {
   const folder = await mkdtemp(join(tmpdir(), 'visor-pipeline-'))
   folders.push(folder)
   const root = join(folder, 'project')
@@ -37,7 +37,7 @@ async function setup() {
   const changes: StoredChange[] = []
   const events: VisorEvent[] = []
   const errors: string[] = []
-  const pipeline = new ChangePipeline({ store, extractors: [python.extractor], onChangeAdded: (change) => changes.push(change), onNormalized: (normalized, error) => { events.push(...normalized); if (error) errors.push(error) } })
+  const pipeline = new ChangePipeline({ store, extractors, onChangeAdded: (change) => changes.push(change), onNormalized: (normalized, error) => { events.push(...normalized); if (error) errors.push(error) } })
   const raw = (event: string, payload: RawHook['payload'] = {}): RawHook => ({ id: randomUUID(), source: 'copilot', event, receivedAt: Date.now(), payload: { session_id: 'test', cwd: root, ...payload } })
   return { root, folder, pipeline, store, changes, events, errors, database, raw }
 }
@@ -61,6 +61,37 @@ it('stores an observed baseline and one confirmed edit with transactional file s
   expect(state.changes[1]?.change.delta).toEqual(expect.arrayContaining([expect.objectContaining({ op: 'node.add' }), expect.objectContaining({ op: 'member.change' })]))
   expect(state.database.prepare('SELECT COUNT(*) AS count FROM change_files').get()).toEqual({ count: 2 })
 })
+it('recovers an older C++ logging edit and its baseline from saved blobs without rewriting history', async () => {
+  const registry = await loadSourceParsers((grammar) => require.resolve(`tree-sitter-wasms/out/tree-sitter-${grammar}.wasm`))
+  try {
+    const state = await setup(registry.extractors)
+    const source = 'void Reader::process() { work(); }'
+    await writeFile(join(state.root, 'Reader.h'), 'class READER_API Reader { public: void process(); };')
+    await writeFile(join(state.root, 'Reader.cpp'), source)
+    const tool = { tool_name: 'edit_file', tool_use_id: 'log', tool_input: { filePath: 'Reader.cpp' } }
+    state.pipeline.enqueue(state.raw('preToolUse', tool))
+    await state.pipeline.flush()
+    await writeFile(join(state.root, 'Reader.cpp'), source.replace('work();', 'log(); work();'))
+    state.pipeline.enqueue(state.raw('postToolUse', tool))
+    await state.pipeline.flush()
+    const current = state.store.latestChange('test')
+    if (!current) throw new Error('Missing C++ edit.')
+    expect(state.pipeline.snapshot(current)).toBe(current)
+    const old = { ...current.change, summary: 'Changed 1 file', delta: current.change.delta.filter((item) => item.op === 'code.hunks') }
+    state.database.prepare('UPDATE changes SET model_after_json = ?').run(JSON.stringify({ v: 2, symbols: [], relations: [] }))
+    state.database.prepare('UPDATE changes SET document_json = ?, delta_json = ? WHERE id = ?').run(JSON.stringify(old), JSON.stringify(old.delta), old.id)
+    await rm(state.root, { recursive: true })
+    const saved = state.store.getChange(old.id)
+    const baseline = state.store.previousChange('test', old.seq)
+    if (!saved || !baseline) throw new Error('Missing saved history.')
+    const recovered = state.pipeline.snapshot(saved)
+    expect(recovered.change.delta).toContainEqual(expect.objectContaining({ op: 'member.change', after: expect.objectContaining({ name: 'process' }) }))
+    expect(recovered.change.summary).toContain('Reader.process')
+    expect(state.pipeline.snapshot(baseline).model.classes.find((node) => node.name === 'Reader')?.methods[0]?.name).toBe('process')
+    expect(state.store.getChange(old.id)).toEqual(saved)
+  } finally { registry.dispose() }
+})
+
 it('recovers a post-only session as a late current-state baseline', async () => {
   const state = await setup()
   state.pipeline.enqueue(state.raw('postToolUse', { tool_name: 'create_file', tool_input: { filePath: 'a.py' } }))
@@ -239,7 +270,8 @@ it('hides legacy documentation-only history while keeping source-less code recor
     payload: { tool: 'apply_patch', toolCallId: 'legacy-documentation', files: ['a.diagram.md'], intent: 'create', outcome: 'succeeded' }
   }
   const text = 'run(self, value)\n'
-  const change = createChange(event, 1, baseline.model, baseline.model, [{ path: 'a.diagram.md', before: null, after: text }])
+  const legacyModel = codeModelSchema.parse({ ...baseline.model, v: 1 })
+  const change = createChange(event, 1, legacyModel, legacyModel, [{ path: 'a.diagram.md', before: null, after: text }])
   state.store.commit(event, { id: session.project.id, root: state.root, name: session.project.name, branch: '' }, {
     change: { change, model: baseline.model }, snapshots: [{ path: 'a.diagram.md', text }]
   })

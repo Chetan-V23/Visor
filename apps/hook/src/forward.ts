@@ -4,12 +4,12 @@ import { readFile } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import {
-  appConfigSchema, isFileChangeHook, MAX_HOOK_BYTES, rawHookSchema, rawPayloadSchema,
+  appConfigSchema, isFileChangeHook, isHookProvider, MAX_HOOK_BYTES, rawHookSchema, rawPayloadSchema,
   type RawHook, type Runtime
 } from '@visor/bridge'
 import { dataFolder, readRuntime } from '@visor/bridge/node'
 import { savePendingHook } from '@visor/bridge/pending'
-import { CopilotAdapter } from '@visor/core'
+import { normalizeHook } from '@visor/core'
 import { quotePowerShell, quoteWindowsArgument } from './windows'
 
 async function healthyRuntime(folder: string, timeout = 500): Promise<Runtime | null> {
@@ -39,7 +39,7 @@ async function launchApp(folder: string): Promise<boolean> {
   if (process.platform === 'win32') {
     return launchWindowsApp({ appPath, appArgs, folder })
   }
-  const env = { ...process.env }
+  const env: NodeJS.ProcessEnv = { ...process.env, VISOR_DATA_DIR: folder }
   delete env.ELECTRON_RUN_AS_NODE
   delete env.ELECTRON_RENDERER_URL
   return new Promise<boolean>((resolve) => {
@@ -83,15 +83,17 @@ async function launchWindowsApp({ appPath, appArgs, folder }: {
   })
 }
 
-export async function forwardRaw({ event, input, folder = dataFolder() }: {
+export async function forwardRaw({ event, input, source = 'copilot', folder = dataFolder() }: {
   event: string | undefined
   input: unknown
+  source?: string
   folder?: string
 }): Promise<void> {
+  if (!isHookProvider(source)) return
   const payload = rawPayloadSchema.safeParse(input)
   if (!payload.success) return
   const parsed = rawHookSchema.safeParse({
-    id: randomUUID(), source: 'copilot', event, receivedAt: Date.now(), payload: payload.data
+    id: randomUUID(), source, event, receivedAt: Date.now(), payload: payload.data
   })
   if (!parsed.success) return
 
@@ -99,7 +101,7 @@ export async function forwardRaw({ event, input, folder = dataFolder() }: {
   if (!runtime) {
     if (!isFileChangeHook(parsed.data)) return
     const root = typeof parsed.data.payload.cwd === 'string' ? parsed.data.payload.cwd : ''
-    const normalized = new CopilotAdapter({ workspaceRoot: root, workspaceId: root, seq: 0 }).normalize(parsed.data)
+    const normalized = normalizeHook(parsed.data, { workspaceRoot: root, workspaceId: root, seq: 0 })
     const edit = normalized.ok ? normalized.events[0] : undefined
     if (edit?.kind === 'edit.pending' || edit?.kind === 'edit.applied') {
       try { await savePendingHook(folder, parsed.data, edit.payload.files) } catch {}
@@ -129,7 +131,7 @@ async function postRaw({ runtime, raw }: { runtime: Runtime; raw: RawHook }): Pr
   } catch {}
 }
 
-export async function forwardStdin(event: string | undefined): Promise<void> {
+export async function forwardStdin(event: string | undefined, source?: string): Promise<void> {
   process.stdin.setEncoding('utf8')
   let text = ''
   let bytes = 0
@@ -143,6 +145,6 @@ export async function forwardStdin(event: string | undefined): Promise<void> {
     }
     clearTimeout(timer)
     const input: unknown = JSON.parse(text)
-    await forwardRaw({ event, input })
+    await forwardRaw({ event, input, source })
   } catch {} finally { clearTimeout(timer) }
 }

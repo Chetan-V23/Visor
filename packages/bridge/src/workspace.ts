@@ -3,9 +3,9 @@ import { readFile, readdir } from 'node:fs/promises'
 import { isAbsolute, join, posix, win32 } from 'node:path'
 import ignore, { type Ignore } from 'ignore'
 import { z } from 'zod'
-import { pathSchema } from '@visor/protocol'
+import { grammarForFile, isProjectMarker, pathSchema } from '@visor/protocol'
 
-const ignored = new Set(['.git', '.venv', 'venv', 'node_modules', '__pycache__', '.audit', 'out', 'dist', 'build', '.ssh', '.secrets', '.credentials'])
+const ignored = new Set(['.git', '.venv', 'venv', 'node_modules', '__pycache__', '.audit', 'out', 'dist', 'build', 'bin', 'obj', '.vs', '.next', 'CMakeFiles', '.ssh', '.secrets', '.credentials'])
 const credentialName = /^(?:\.env(?:\.|$)|id_(?:rsa|dsa|ecdsa|ed25519)(?:\.|$))|\.(?:key|pem|p12|pfx|ppk)$/i
 const MAX_SOURCE_BYTES = 2 * 1024 * 1024
 const MAX_BASELINE_FILES = 500
@@ -93,7 +93,7 @@ export function snapshotPolicy(root: string): (path: string, directory?: boolean
   }
 }
 
-export async function scanPython(root: string, maxBytes = Infinity): Promise<SourceSnapshot[]> {
+export async function scanSources(root: string, maxBytes = Infinity): Promise<SourceSnapshot[]> {
   const files: SourceSnapshot[] = []
   const allowed = snapshotPolicy(root)
   let bytes = 0
@@ -106,8 +106,8 @@ export async function scanPython(root: string, maxBytes = Infinity): Promise<Sou
       const relative = path ? `${path}/${entry.name}` : entry.name
       if (!allowed(relative, entry.isDirectory())) continue
       if (entry.isDirectory()) await walk(relative, depth + 1)
-      else if (entry.isFile() && entry.name.toLowerCase().endsWith('.py')) {
-        if (files.length >= MAX_BASELINE_FILES) throw new Error('Workspace has more than 500 Python files.')
+      else if (entry.isFile() && (grammarForFile(entry.name) || isProjectMarker(entry.name))) {
+        if (files.length >= MAX_BASELINE_FILES) throw new Error('Workspace has more than 500 supported source and project files.')
         const text = await readSource(root, relative)
         bytes += Buffer.byteLength(text ?? '', 'utf8')
         if (bytes > maxBytes) throw new Error('Workspace snapshot exceeds the byte limit.')

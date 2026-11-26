@@ -7,7 +7,7 @@ import {
 import { Focus, Minus, Plus, RotateCcw, Workflow } from 'lucide-react'
 import { themeVariables } from '@visor/theme'
 import { layout, type RelationRoute } from '../diagram/layout'
-import type { DiagramEdge, DiagramView } from '../diagram/types'
+import { languageLabels, type DiagramEdge, type DiagramView } from '../diagram/types'
 import { ClassNode, MethodTooltipProvider, type ClassFlowNode } from './ClassNode'
 import { IconButton } from './IconButton'
 
@@ -92,7 +92,7 @@ function Diagram({ view }: { view: DiagramView }) {
     source: edge.from,
     target: edge.to,
     type: 'relation',
-    data: { label: `${relationNames[edge.kind ?? 'calls']}: ${edge.label}${edge.certainty === 'inferred' ? ' (inferred)' : ''}`, description: relationDescription(edge), route: routes.get(edge.id) },
+    data: { label: edge.kind && edge.kind !== 'calls' ? `${relationNames[edge.kind]}: ${edge.label}${edge.certainty === 'inferred' ? ' (inferred)' : ''}` : edge.label, description: relationDescription(edge), route: routes.get(edge.id) },
     ariaLabel: relationDescription(edge),
     style: { stroke: edge.change === 'added' ? themeVariables.added : edge.change === 'deleted' ? themeVariables.deleted : themeVariables.ink, strokeWidth: 1.6, strokeDasharray: ['depends', 'connects', 'imports'].includes(edge.kind ?? '') ? '6 4' : undefined },
     markerStart: edge.kind === 'composes' || edge.kind === 'aggregates' ? `${markerPrefix}-${edge.kind}-${edge.change ?? 'unchanged'}` : undefined,
@@ -159,8 +159,10 @@ function Diagram({ view }: { view: DiagramView }) {
 export function DiagramCanvas({ view }: { view: DiagramView }) {
   const modules = view.classes.filter((symbol) => symbol.kind === 'module').length
   const classes = view.classes.length - modules
-  const title = modules ? 'Code diagram' : 'Class diagram'
-  const count = modules ? `${classes ? `${classes} classes, ` : ''}${modules} ${modules === 1 ? 'module' : 'modules'}` : `${classes} classes`
+  const otherKinds = view.classes.some((symbol) => symbol.kind && symbol.kind !== 'class' && symbol.kind !== 'module')
+  const title = modules || otherKinds ? 'Code diagram' : 'Class diagram'
+  const count = otherKinds ? `${view.classes.length} symbols` : modules ? `${classes ? `${classes} classes, ` : ''}${modules} ${modules === 1 ? 'module' : 'modules'}` : `${classes} classes`
+  const languages = [...new Set(view.classes.map((symbol) => languageLabels[symbol.language ?? 'py'][1]))].sort()
   return (
     <section className="diagram-panel" aria-label={title}>
       <div className="diagram-heading">
@@ -172,7 +174,7 @@ export function DiagramCanvas({ view }: { view: DiagramView }) {
         <ReactFlowProvider><MethodTooltipProvider changeId={view.classes.find((symbol) => symbol.methods.length > 0)?.methods[0]?.changeId}><Diagram view={view} /></MethodTooltipProvider></ReactFlowProvider>
       </div>
       <footer className="diagram-status">
-        <span><span className="status-dot" /> Python</span>
+        <span><span className="status-dot" /> {languages.join(', ')}</span>
         <span className="diagram-legend"><span className="legend-added">+ Added</span><span className="legend-deleted">- Deleted</span><span>Unchanged</span></span>
       </footer>
     </section>
